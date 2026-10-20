@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/1- Presentation/">
+    <Project Path="src/Esteira.Api/Esteira.Api.csproj" Id="a211e443-cec1-432f-86d3-4790b40a6ba9" />
+  </Folder>
+  <Folder Name="/2- Infrastructure/">
+    <Project Path="src/Esteira.AcL/Esteira.AcL.csproj" Id="61013758-8674-41ff-a3fc-6bb707e719a3" />
+    <Project Path="src/Esteira.Data/Esteira.Data.csproj" Id="635c89cc-59cc-4736-a510-325d6b5a83eb" />
+    <Project Path="src/Esteira.Infra.Cache/Esteira.Infra.Cache.csproj" />
+    <Project Path="src/Esteira.IoC/Esteira.IoC.csproj" Id="9ebc2a45-3e83-4bcc-8632-233a37cc80cd" />
+    <Project Path="src/Esteira.Messaging/Esteira.Messaging.csproj" Id="cd138816-eab9-485c-bed4-13788c2f0f7d" />
+  </Folder>
+  <Folder Name="/3- Application/">
+    <Project Path="src/Esteira.Application/Esteira.Application.csproj" Id="9efdc827-1f80-425a-963b-8cbb2d3c2d62" />
+  </Folder>
+  <Folder Name="/4- Domain/">
+    <Project Path="src/Esteira.Domain/Esteira.Domain.csproj" Id="56c15e13-8fad-43bb-a7c1-94584e121b10" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="test/Esteira.Application.Tests/Esteira.Application.Tests.csproj" />
+    <Project Path="test/Esteira.Domain.Tests/Esteira.Domain.Tests.csproj" Id="d7770a92-f3e4-4e0e-a7af-aaeb8c38f802" />
+  </Folder>
+</Solution>

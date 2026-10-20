@@ -1,0 +1,72 @@
+# ============================================
+# Esteira API — .gitignore
+# ============================================
+
+# --- Segredos e credenciais — NUNCA versionar ---
+.env
+.env.*
+!.env.example
+*.pfx
+*.key
+*.pem
+*credentials*
+*secrets*
+kubeconfig
+.kube/config
+
+# --- .NET (backend) ---
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+.vs/
+[Tt]est[Rr]esult*/
+*.dbmdl
+*.pdb
+*.cache
+artifacts/
+
+# --- Node / Angular (frontend) ---
+node_modules/
+dist/
+/tmp
+/out-tsc
+.angular/cache
+npm-debug.log
+yarn-error.log
+/coverage
+__screenshots__/
+
+# --- VS Code — versiona config compartilhada, ignora o resto ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/mcp.json
+.history/*
+
+# --- Claude Code ---
+.claude/
+Claude outputs/
+
+# --- OpenCode ---
+# TODO: confirmar o nome exato da pasta de estado local do OpenCode
+# (não encontrei essa informação nos seus docs — adiciona aqui quando descobrir)
+
+# --- Automations (n8n) ---
+# TODO: confirmar onde o n8n self-hosted grava dados/credenciais localmente
+# (se for volume Docker fora do repo, essa linha nem é necessária)
+
+# --- IDEs diversos ---
+.idea/
+*.sln.iml
+.project
+.classpath
+.settings/
+*.sublime-workspace
+
+# --- Sistema ---
+.DS_Store
+Thumbs.db
