@@ -1,34 +1,18 @@
 # Esteira API — pendências e melhorias
 
-Documento de contexto para continuar a evolução do projeto. Atualizado em 2026-10-20.
+Documento de contexto para continuar a evolução do projeto. Atualizado em 2026-10-22, depois do discovery que redesenhou o domínio (ADR-0007, ADR-0008, glossário em `CONTEXT-MAP.md`).
 
 ## Contexto do projeto
 
-- **O que é:** API que controla o fluxo de deploy de um sistema por etapas (abertura, versão das tarefas, GMUD, banco de dados, aprovação técnica, DEV, QA, HML, área de negócio, PRD), recebendo os deploys e as análises de segurança das pipelines.
+- **O que é:** API que **decide se cada deploy pode seguir** e **orquestra as promoções no GitLab**: todo Fluxo de deploy começa aqui, a pipeline do template-ci chama a Esteira (`esteira-abrir` · `esteira-gate` · `esteira-resultado`), as aprovações humanas vivem aqui e um bot executa tag/merge/play no GitLab. Vocabulário: `CONTEXT-MAP.md` (Aplicação, Projeto, Entrega, Fluxo, Candidata, Ambiente, Destino, Deploy, Análise, Achado, Exceção…).
 - **Nome:** o projeto se chama **Esteira**. `FluxoDeploy` é apenas a entidade (agregado) do domínio.
 - **Arquitetura:** DDD + CQRS.
-  - Agregados `FluxoDeploy` (etapas, CRS, aprovações técnicas e de negócio, GMUD, versão das tarefas) e `Deploy` (análises → artefatos).
   - Contexto de escrita `EsteiraContext` e de leitura `EsteiraReadContext` (sem rastreamento) sobre o mesmo schema.
   - Specifications ficam em `Esteira.Data`. Application organizada em Commands/Queries por agregado.
   - Pipeline do MediatR: Validação → Autorização → Cache → Transação.
-  - Domain events (`FluxoDeployConcluido`, `FluxoDeployCancelado`) são despachados dentro do `SaveChanges`, na mesma transação.
-- **Stack:** .NET 10, EF Core 10 + Npgsql (PostgreSQL), JWT Bearer, Serilog, OpenAPI + Scalar, MassTransit 8.5.11 (RabbitMQ), MediatR 12.5.0, FluentValidation 12, Quartz 4, xUnit v3 (Microsoft Testing Platform), AwesomeAssertions, NSubstitute.
-- **Banco:** migrations em `src/Esteira.Data/Common/Persistence/Migracoes`. A view de resumo está em `scripts/banco/views/VW_FLUXO_DEPLOY_RESUMO.sql` e é embutida na migration. Script completo em `scripts/banco/esteira.sql`.
-- **Integrações:** ficam atrás de portas em `Application/Interfaces/Integracoes`; os adaptadores atuais em `Esteira.AcL/Integracoes` são "não configurados" e respondem **501**.
-  - `IGerenciadorTarefas`: só `ObterTarefas(ids)`, usado na etapa AAN para conferir se as tarefas vinculadas estão aprovadas.
-  - `IScannerDast`: execução e resultado da análise DAST.
-  - `IMigracaoBancoDados`: reservada para migração automática de banco.
-
-## Regras importantes já implementadas
-
-- Dois fluxos abertos por sistema, no máximo. Um fluxo nunca entra numa etapa que o outro está executando, e o mais novo não entra em PRD antes do mais antigo concluir.
-- Voltar etapa com outro fluxo aberto: quem está em HML/AAN/PRD só volta dentro desses três.
-- Deploy com dois fluxos: vai para o fluxo com a etapa da branch em execução; a versão é validada por projeto.
-- Nova versão das tarefas (projeto ou versão diferente) apaga as aprovações de negócio vinculadas.
-- Etapa AAN exige ao menos uma tarefa vinculada e todas aprovadas.
-- Aprovação técnica só com a etapa AET em execução; o criador do fluxo não pode aprovar; o mesmo aprovador pode alterar o próprio veredito.
-- Somente o criador do fluxo altera o fluxo (`AutorizacaoBehavior`, 403).
-- Análise DAST: uma por URL ao mesmo tempo (verificação + índice único parcial). Pedido para URL já em scan é ignorado e registrado em log.
+  - Domain events despachados dentro do `SaveChanges`, na mesma transação.
+- **Stack:** .NET 10, EF Core 10 + Npgsql (PostgreSQL), Serilog, OpenAPI + Scalar, MassTransit 8.5.11 (RabbitMQ), MediatR 12.5.0, FluentValidation 12, Quartz 4, xUnit v3 (Microsoft Testing Platform), AwesomeAssertions, NSubstitute. Autenticação: BFF + Keycloak (ADR-0004).
+- **Sem dado em uso:** o backend nunca rodou em produção. A refatoração é livre: migrations recomeçam numa base nova, sem compatibilidade com o contrato herdado do sistema legado (`POST /api/artefato`).
 
 ## Restrições de licença
 
@@ -37,45 +21,63 @@ Documento de contexto para continuar a evolução do projeto. Atualizado em 2026
 - **FluentAssertions:** substituído por AwesomeAssertions (8+ é comercial).
 - Usar apenas pacotes gratuitos ou MIT.
 
-## Pendências
+## Refatoração do modelo (discovery 2026-10-21/22)
+
+O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias de `specs/README.md`; isto é o mapa do que muda.
+
+### Sai
+- [ ] Etapas **GMUD**, **BD** (CRS de banco), **VERSAO** e a **AET única** — `FluxoDeployGmudEntity`, `FluxoDeployBdCrsEntity`, `FluxoDeployVersaoTarefasEntity`, os `Etapa*Service`/`*Rules` correspondentes, controllers `FluxoDeployBancoDadosCrs*`/`Vinculos` e o que for só deles.
+- [ ] **DAST próprio** — `IScannerDast`, `ScannerDastNaoConfigurado`, `AnaliseDastJob`, consumers/mensagens DAST, índice "uma análise por URL". Quem roda o ZAP é o template; o resultado chega pelo `esteira-resultado`.
+- [ ] **`IMigracaoBancoDados`** — migration roda no deploy do template.
+- [ ] **Regra dos 2 fluxos por sistema** e "deploy vai pro fluxo da etapa da branch".
+- [ ] **`POST /api/artefato`** (multipart com Semgrep/Trivy do sistema legado) e os DTOs `SemgrepDtoRequest`/`TrivyDtoRequest`.
+- [ ] **"Somente o criador altera o fluxo"** (`AutorizacaoBehavior`) — substituído pelos papéis por Aplicação.
+- [ ] **"Liberar fluxo sem validação"** (pendência antiga) — não existe: Esteira é fail-closed sem bypass; o MOR aprova com autoaprovação marcada.
+- [ ] **"Burla de tag em HML"** (pendência antiga) — resolvida: tags `v*` protegidas e criadas só pelo bot, linhagem validada pelo `controlar-pipeline`, regra de descendência na Esteira.
+
+### Muda
+- [ ] **Sistema → Aplicação.** Aplicação aponta para um grupo do GitLab e tem Projetos (um repositório cada, com stack). `ConfiguracaoSistema` vira a **política de severidade da Aplicação por Ambiente** (`LimitesSeveridadeValueObject` por Ambiente; padrão: dev avisa, qa/hml/prd bloqueiam CRITICAL+HIGH).
+- [ ] **Fluxo = Projeto + versão** (`MAJOR.MINOR`, minor entra no fluxo normal), dentro de uma **Entrega** (Fluxos parceiros com as mesmas issues e dependência declarada). Tipos normal e hotfix.
+- [ ] **Etapas:** normal `ABER → AET-1 → DEV → QA → HML → AAN → AET-2 → PRD`; hotfix `ABER → AET-2 → PRD`. `EtapaEnum` hoje declara HML antes de QA — corrigir.
+- [ ] **Deploy associado por (projeto, versão core da tag)**, com o Ambiente vindo do `PIPELINE_ENV` do template; guarda tag e branch. Um Deploy por **Destino**.
+- [ ] **Análise** sai do Deploy: **da Candidata** (código/imagem, roda uma vez) ou **do Deploy** (smoke, DAST, agente de qa). **Artefato → Achado**.
+- [ ] **Concorrência:** um Fluxo por Ambiente de Projeto; chegada em PRD na ordem de versão; candidata precisa descender da última final publicada e da candidata atual de cada fluxo mais antigo aberto (API compare do GitLab).
+- [ ] **Aprovações:** AET-1, AAN e AET-2 por Entrega; aprovação da candidata por Fluxo (primeiro Ambiente onde a candidata roda); Publicar por Entrega. Autoaprovação do MOR marcada, com motivo.
+- [ ] **AAN:** aprovação issue por issue na Esteira (o GitLab só fornece a lista); "nova versão das tarefas apaga aprovações de negócio" passa a ser "mudança de escopo da Entrega reinicia AAN e AET-2".
+
+### Entra
+- [ ] **Integração com a pipeline:** `esteira-abrir` (valida Fluxo/Candidata/Ambiente, devolve configuração e Destinos), `esteira-gate` (aplica política + Exceções, responde OK/erro), `esteira-resultado` (202; processado por fila). Autenticação por `id_tokens` do GitLab (JWKS). Fail-closed.
+- [ ] **Bot do GitLab** (um por grupo, token só em secret): cortar candidata, abrir/mergear MR de promoção (`release/<tag>` só quando a origem andou além da tag), sincronizar para baixo, play do job de produção, rollback. Webhook de pipeline para status ao vivo.
+- [ ] **Sincronização** automática para baixo depois de publicação, hotfix e correção nascida em qa/hml; conflito vira MR e marca o estágio "dessincronizado".
+- [ ] **Cancelamento** com destino do código (reverter/absorver) e, numa Entrega, cancelar tudo ou desvincular.
+- [ ] **Rollback** de produção (imagem), em ordem inversa à dependência; Projeto "em rollback" até a correção para frente; marca "migrations retrocompatíveis" na AET-2 (sem ela, só MOR).
+- [ ] **Exceção** de achado (motivo, pedinte, aprovador, validade) no lugar do `.security-ignore`.
+- [ ] **Papéis por Aplicação** (Membro, Aprovador técnico, Aprovador de negócio, Publicador) + **MOR** global (Keycloak). Substitui `AprovadorTecnicoEntity`/equipe e o "perfil de gestão".
+- [ ] **Notas de entrega** (oasdiff do OpenAPI, diff de rotas Angular, screenshots do agente de qa, issues; texto por agente).
+- [ ] **Notificação por e-mail** + caixa de pendências ("aguardando você"). Depende de SMTP na infra (`docs/mudancas-infra.md`).
+- [ ] **Backups pré-publicação** visíveis na tela (os 3 últimos por Aplicação); restore é manual, só MOR.
+
+## Pendências técnicas
 
 ### Segurança e acesso
-- [ ] **`[Authorize]` nos endpoints.** Hoje todos estão abertos; só a regra "somente o criador altera" protege as alterações. Exigir autenticação quando o provedor de identidade for definido.
-- [ ] **Permissões completas.** Perfil de gestão (diretoria/supervisão de TI) via claim do JWT com acesso total; definir quem é o aprovador de negócio e restringir à etapa AAN.
-- [ ] **"Liberar fluxo" sem validação**, só para gestão, com auditoria obrigatória (quem, quando, por quê).
-- [ ] **Burla de tag em HML.** A API valida só o nome da tag: cortando uma tag com a versão do fluxo 1 em cima do código do fluxo 2, o código entra no HML do fluxo 1. Opções:
-  1. Enviar o SHA do commit no deploy e só aceitar em HML/PRD um SHA que já passou por DEV/QA no mesmo fluxo e projeto (coluna nova).
-  2. Consultar o GitLab no deploy e rejeitar a tag cujo commit contém o commit deployado pelo outro fluxo.
-  3. Processo: tags e branches protegidas, MR obrigatório.
-
-### Integrações
-- [ ] **Gerenciador de tarefas (GitLab).** Implementar `IGerenciadorTarefas` em `Esteira.AcL`, vinculando issues/specs/features do GitLab ao fluxo. Sem isso a etapa AAN responde 501.
-- [ ] **Scanner DAST.** Implementar `IScannerDast` com a ferramenta escolhida (ex.: OWASP ZAP). Avaliar cancelamento forçado de scan para não sobrecarregar.
-- [ ] **Migração automática de banco.** Implementar `IMigracaoBancoDados` e ligar à etapa de banco de dados.
-- [ ] **IA no GitLab.** Code-review-agent em DEV e qa-agent/smoke em QA, enviando o resultado para a API como uma análise do fluxo.
+- [ ] **Audit trail.** A Esteira orquestra o GitLab com um token de bot (ADR-0008): no GitLab todo merge/tag aparece como o bot, então quem clicou, quando e por quê só existe aqui. Integrar a aplicação de audit trail que o Daniel já tem (a ser trazida pro workspace). Cobre também metadados (DataCriação, DataAtualização, usuário) e o módulo de atividade.
+- [ ] **`[Authorize]` nos endpoints** quando a sessão BFF (ADR-0004) entrar; endpoints da pipeline autenticados por `id_token`, não por sessão.
+- [ ] **Endpoint de permissões para o front.** `GET /api/fluxo-deploy/{id}/permissoes` devolvendo o que o usuário pode fazer, calculado pelas mesmas regras do backend (papéis da Aplicação + MOR).
 
 ### Mensageria e eventos
-- [ ] **Outbox e inbox com tabela.** Hoje é em memória (`UseInMemoryInboxOutbox`), então reiniciar o processo perde o controle. Com EF Core 10 o `MassTransit.EntityFrameworkCore` passa a ser compatível; avaliar com PostgreSQL.
+- [ ] **Outbox e inbox com tabela — fase 1, junto da M0** (ADR-0010: as Ações do bot dependem dele). Hoje é em memória (`UseInMemoryInboxOutbox`), então reiniciar o processo perde o controle. Com EF Core 10 o `MassTransit.EntityFrameworkCore` passa a ser compatível; avaliar com PostgreSQL.
 - [ ] **Integration events.** `IIntegrationEvent` gerado pelos domain event handlers e publicado pelo outbox após o commit (ex.: fluxo concluído → avisar outros sistemas).
-- [ ] **Retry.** Avaliar `UseMessageRetry` nos consumers que só gravam no banco. Nunca no consumer DAST, que dispara scan antes de gravar.
+- [ ] **Retry** nos consumers que só gravam no banco (processamento de relatórios).
 - [ ] **Exchanges por ambiente.** Hoje é sufixo `-hml`/`-prd` no nome. Avaliar virtual host por ambiente.
 
-### Domínio e funcionalidades
-- [ ] **Tecnologias e projetos por fluxo.** Cada fluxo declara as tecnologias e os projetos (ex.: Angular → todos; Java → os projetos Java da aplicação). A etapa de ambiente só conclui com todos os deploys de todas as tecnologias concluídos, e o usuário sempre vê quais deploys fazem parte do fluxo. Exige tabela nova. Também permitiria mais de 2 fluxos por sistema (por tecnologia).
-- [ ] **Metadados e módulo de atividade.** DataCriação, DataAtualização e usuário em todas as alterações (interceptor do EF) e um módulo de logs/atividade: gestão vê tudo, usuário vê só o seu.
-- [ ] **GMUD e versão das tarefas sem trava de etapa.** Hoje podem ser atualizadas em qualquer etapa com o fluxo em execução. Decidir se só devem ser alteradas com a etapa correspondente em execução, e se a data de execução da GMUD deve mudar na atualização.
-- [ ] **Endpoint de permissões para o front.** `GET /api/fluxo-deploy/{id}/permissoes` devolvendo o que o usuário pode fazer, calculado pelas mesmas regras do backend.
-
 ### Observabilidade e performance
-- [ ] **Saída de logs.** Serilog hoje escreve só no console; definir o destino (arquivo, Seq, Loki, Grafana etc.).
-- [ ] **Cache da configuração de autenticação (JWKS)**, se o provedor exigir.
+- [ ] **Disponibilidade é requisito de produção:** com fail-closed, Esteira fora do ar = nada publica. Health, alerta e runbook à altura (`docs/agents/observabilidade-backup.md`).
 - [ ] **Aquecimento e cold start.** As primeiras chamadas de cada consulta custam mais (JIT e compilação de consultas do EF). Avaliar ReadyToRun no publish e aquecimento das consultas em segundo plano no startup.
-- [ ] **Cache centralizado.** Já existe `ICacheService` + `CacheBehavior`; levantar outras consultas candidatas (aprovadores por equipe, configuração do sistema).
+- [ ] **Cache centralizado.** Já existe `ICacheService` + `CacheBehavior`; candidatos: papéis por Aplicação, política de severidade, JWKS do GitLab.
 
 ### Qualidade
 - [ ] **Testes de integração.** Os testes atuais são de Domain e Application com mocks. Criar testes da camada Data e da API contra PostgreSQL real (ex.: Testcontainers).
-- [ ] **Testes do consumer DAST.** Cobrir: URL ocupada não chama o scanner; URL livre chama e registra; falha do scanner marca erro.
-- [ ] **Conferir a view de resumo.** Foi reescrita para PostgreSQL; validar se o formato dos textos agregados é o esperado pelo front.
+- [ ] **View de resumo** (`VW_FLUXO_DEPLOY_RESUMO`) — refazer sobre o modelo novo (Entrega/Fluxo/Candidata).
 
 ## Como rodar
 
