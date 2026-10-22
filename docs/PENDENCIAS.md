@@ -81,12 +81,18 @@ O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias 
 
 ## Como rodar
 
+Pré-requisito: infra compartilhada no ar e os segredos da casa `esteira` no user-secrets da API (uma vez, e de novo depois de cada `apply` que troque segredo):
+
+```powershell
+node <ai-infra>\configs\infra\infra-config.mjs secrets esteira --csproj=src\Esteira.Api\Esteira.Api.csproj
+```
+
 ```bash
 dotnet build Esteira.slnx
 dotnet test --solution Esteira.slnx
 dotnet tool restore
-ESTEIRA_CONNECTION="Host=localhost;Database=esteira;Username=postgres;Password=postgres" \
-  dotnet ef database update --project src/Esteira.Data --startup-project src/Esteira.Api --context EsteiraContext
+dotnet ef database update --project src/Esteira.Data --startup-project src/Esteira.Api --context EsteiraContext   # usa ConnectionStrings:PostgresMigrations (esteira_owner)
+dotnet run --project src/Esteira.Api --launch-profile http   # http://localhost:5105 — /health, /metrics, /scalar/v1
 ```
 
-Configurações em `src/Esteira.Api/appsettings.json`: `ConnectionStrings:EsteiraConnection`, `Autenticacao`, `RabbitMQ`, `GerenciadorTarefas`, `Cors`. Documentação da API em `/scalar/v1` no ambiente Development.
+Configuração: só as chaves do contrato (`../docs/agents/infra-local.md`: `ConnectionStrings:Postgres`/`PostgresMigrations`, `RabbitMQ:*`, `Keycloak:*`, `OTEL_*`), vindas do user-secrets em dev. No `appsettings.json` fica só o que é do projeto: `Serilog`, `Autenticacao` (claims, HTTPS), `RabbitMQ:Ambiente`, `Cors`. Sem chave obrigatória, a API não sobe e diz qual falta.

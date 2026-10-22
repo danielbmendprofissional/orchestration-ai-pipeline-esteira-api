@@ -10,18 +10,39 @@ using Esteira.Messaging;
 using Esteira.Messaging.Configuracao;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Esteira.Api.Configuracoes;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
+using Prometheus;
 using Quartz;
 using Scalar.AspNetCore;
 using Serilog;
+using Serilog.Sinks.OpenTelemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseSerilog((context, services, configuration) => configuration
-    .ReadFrom.Configuration(context.Configuration)
-    .ReadFrom.Services(services)
-    .Enrich.FromLogContext());
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext();
+
+    // Rodando fora do Docker, o log vai pro Loki via OTLP (docs/agents/observabilidade-backup.md).
+    var otlpEndpoint = context.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+    if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+    {
+        configuration.WriteTo.OpenTelemetry(otlp =>
+        {
+            otlp.Endpoint = otlpEndpoint;
+            otlp.Protocol = context.Configuration["OTEL_EXPORTER_OTLP_PROTOCOL"] == "grpc"
+                ? OtlpProtocol.Grpc
+                : OtlpProtocol.HttpProtobuf;
+            otlp.ResourceAttributes = Configuracao.AtributosOtel(context.Configuration["OTEL_RESOURCE_ATTRIBUTES"]);
+            otlp.ResourceAttributes["service.name"] = "esteira-api";
+        });
+    }
+});
 
 builder.Services
     .AddControllers(options => options.Filters.Add<PaginacaoResultFilter>())
@@ -34,7 +55,10 @@ builder.Services
         };
     });
 
-var connectionString = builder.Configuration.GetConnectionString("EsteiraConnection");
+// Migrations (dotnet ef) usam o owner do banco; a API em runtime, só a role de aplicação.
+var connectionString = Configuracao.Obrigatoria(
+    builder.Configuration,
+    EF.IsDesignTime ? "ConnectionStrings:PostgresMigrations" : "ConnectionStrings:Postgres");
 
 builder.Services.AddDbContext<EsteiraContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<EsteiraReadContext>(options => options.UseNpgsql(connectionString));
@@ -44,13 +68,14 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<GerenciadorTarefasSettings>(builder.Configuration.GetSection(GerenciadorTarefasSettings.Secao));
 
 var autenticacao = builder.Configuration.GetSection(AutenticacaoSettings.Secao).Get<AutenticacaoSettings>() ?? new AutenticacaoSettings();
+var keycloakAuthority = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:Authority");
 builder.Services.Configure<AutenticacaoSettings>(builder.Configuration.GetSection(AutenticacaoSettings.Secao));
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = autenticacao.Authority;
-        options.Audience = autenticacao.Audience;
+        options.Authority = keycloakAuthority;
+        options.Audience = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientId");
         options.RequireHttpsMetadata = autenticacao.RequerHttps;
         options.MapInboundClaims = false;
     });
@@ -78,18 +103,24 @@ builder.Services.AddMassTransit(x =>
         cfg.MessageTopology.SetEntityNameFormatter(new SufixoAmbienteEntityNameFormatter(cfg.MessageTopology.EntityNameFormatter, ambienteMensageria));
 
         cfg.Host(
-            builder.Configuration.GetValue("RabbitMQ:Host", "rabbitmq"),
-            builder.Configuration.GetValue("RabbitMQ:VirtualHost", "/"),
+            Configuracao.Obrigatoria(builder.Configuration, "RabbitMQ:Host"),
+            ushort.Parse(Configuracao.Obrigatoria(builder.Configuration, "RabbitMQ:Port")),
+            Configuracao.Obrigatoria(builder.Configuration, "RabbitMQ:VirtualHost"),
             h =>
             {
-                h.Username(builder.Configuration.GetValue<string>("RabbitMQ:UserName"));
-                h.Password(builder.Configuration.GetValue<string>("RabbitMQ:Password"));
+                h.Username(Configuracao.Obrigatoria(builder.Configuration, "RabbitMQ:UserName"));
+                h.Password(Configuracao.Obrigatoria(builder.Configuration, "RabbitMQ:Password"));
             });
         cfg.ConfigureEndpoints(context);
     });
 });
 
 builder.Services.AddDependencyInjection();
+
+// RabbitMQ entra pelo health check que o próprio MassTransit registra.
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<EsteiraContext>("postgres")
+    .AddUrlGroup(new Uri($"{keycloakAuthority.TrimEnd('/')}/.well-known/openid-configuration"), "keycloak");
 
 builder.Services.AddCors(options =>
 {
@@ -116,6 +147,7 @@ var app = builder.Build();
 
 app.UseMiddleware<TempoRequisicaoMiddleware>();
 app.UseSerilogRequestLogging();
+app.UseHttpMetrics();
 
 if (app.Environment.IsDevelopment())
 {
@@ -131,5 +163,7 @@ app.UseAuthorization();
 app.UseMiddleware<ExceptionMiddleware>();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
+app.MapMetrics();
 
 await app.RunAsync();
