@@ -36,7 +36,7 @@ namespace Esteira.Integration.Tests.Mensageria
 
         private async Task<int> MensagensNoOutboxAsync(Guid marcador)
         {
-            var opcoes = new DbContextOptionsBuilder<EsteiraContext>().UseNpgsql(infra.ConnectionString).Options;
+            var opcoes = new DbContextOptionsBuilder<EsteiraContext>().UsarPostgres(infra.ConnectionString).Options;
             await using var contexto = new EsteiraContext(opcoes, null!);
             return await contexto.Set<OutboxMessage>().CountAsync(m => m.Body.Contains(marcador.ToString()));
         }

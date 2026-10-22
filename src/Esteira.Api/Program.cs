@@ -54,8 +54,8 @@ var connectionString = Configuracao.Obrigatoria(
     builder.Configuration,
     EF.IsDesignTime ? "ConnectionStrings:PostgresMigrations" : "ConnectionStrings:Postgres");
 
-builder.Services.AddDbContext<EsteiraContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddDbContext<EsteiraReadContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<EsteiraContext>(options => options.UsarPostgres(connectionString));
+builder.Services.AddDbContext<EsteiraReadContext>(options => options.UsarPostgres(connectionString));
 
 builder.Services.AddOpenApi();
 

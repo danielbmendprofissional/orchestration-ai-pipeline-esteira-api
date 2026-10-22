@@ -19,6 +19,8 @@ namespace Esteira.Data.Common.Persistence
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasDefaultSchema(EsteiraPostgres.Schema);
+
             // Outbox e inbox do MassTransit (ADR-0010): mensagem publicada num command
             // grava na mesma transação do SaveChanges.
             modelBuilder.AddInboxStateEntity();

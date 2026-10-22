@@ -34,7 +34,7 @@ namespace Esteira.Integration.Tests.Infraestrutura
         {
             await Task.WhenAll(_postgres.StartAsync(), _rabbitMq.StartAsync());
 
-            var opcoes = new DbContextOptionsBuilder<EsteiraContext>().UseNpgsql(ConnectionString).Options;
+            var opcoes = new DbContextOptionsBuilder<EsteiraContext>().UsarPostgres(ConnectionString).Options;
             await using var contexto = new EsteiraContext(opcoes, new SemDespacho());
             await contexto.Database.MigrateAsync();
         }

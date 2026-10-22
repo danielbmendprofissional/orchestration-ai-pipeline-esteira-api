@@ -19,7 +19,7 @@ namespace Esteira.Integration.Tests.Infraestrutura
             var builder = Host.CreateApplicationBuilder();
             builder.Configuration.AddInMemoryCollection(infra.Configuracao(ambienteMensageria));
 
-            builder.Services.AddDbContext<EsteiraContext>(options => options.UseNpgsql(infra.ConnectionString));
+            builder.Services.AddDbContext<EsteiraContext>(options => options.UsarPostgres(infra.ConnectionString));
             builder.Services.AddMensageria(builder.Configuration, producao: false, consumidores);
             builder.Services.AddDependencyInjection();
 

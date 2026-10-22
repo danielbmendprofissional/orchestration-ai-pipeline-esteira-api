@@ -21,6 +21,7 @@ Dependência aponta para dentro: `Domain` ← `Application` ← `Data` · `AcL` 
 - **Erros:** handler retorna `Result<T>` com `code` estável (`<area>.<motivo>`, ex.: `ambiente.ocupado`) — ADR-0003. `DomainException` é legado até a fatia B2.
 - **Escrita** por repositório + `IUnitOfWork` no `EsteiraContext`; **leitura** por query repository no `EsteiraReadContext` projetando `QueryModel`. Paginação e ordenação no banco (`Skip`/`Take` na query) com headers `X-*` (ADR-0002); `BaseHandler.Paginacao` pagina em memória e é legado.
 - **IDs:** `long Id` para chave e join, `Guid PublicId` (v7, gerado no `EntityBase`) em tudo que sai da API — ADR-0014. Rota recebe GUID e resolve para `long` uma vez.
+- **Banco:** tudo no schema `esteira` (ADR-0016); contexto liga ao Postgres só por `EsteiraPostgres.UsarPostgres`. Migrations com `esteira_owner`, runtime com `esteira_app` (sem DDL).
 - **Datas** em UTC (`DateTime` UTC ou `DateTimeOffset`), coluna `timestamptz` — padrão do Npgsql, o mesmo do outbox.
 - **Invariante entre agregados** vira restrição no banco (índice único + concorrência otimista), como a ocupação do Ambiente — ADR-0009.
 - **Sistema externo** só atrás de porta em `Application/Interfaces/Integracoes`, adaptador no `AcL`. Escrita no GitLab só como **Ação do bot** gravada na transação (outbox) e executada por consumer — ADR-0010.

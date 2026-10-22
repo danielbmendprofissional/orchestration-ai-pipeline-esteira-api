@@ -12,6 +12,8 @@ namespace Esteira.Data.Common.Persistence
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasDefaultSchema(EsteiraPostgres.Schema);
+
             base.OnModelCreating(modelBuilder);
         }
 
