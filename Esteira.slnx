@@ -18,5 +18,6 @@
   <Folder Name="/Tests/">
     <Project Path="test/Esteira.Application.Tests/Esteira.Application.Tests.csproj" />
     <Project Path="test/Esteira.Domain.Tests/Esteira.Domain.Tests.csproj" Id="d7770a92-f3e4-4e0e-a7af-aaeb8c38f802" />
+    <Project Path="test/Esteira.Integration.Tests/Esteira.Integration.Tests.csproj" />
   </Folder>
 </Solution>

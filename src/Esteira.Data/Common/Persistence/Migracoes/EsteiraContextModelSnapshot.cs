@@ -17,668 +17,190 @@ namespace Esteira.Data.Common.Persistence.Migracoes
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("esteira")
                 .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Esteira.Domain.AprovadoresTecnicos.Entities.AprovadorTecnicoEntity", b =>
+            modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.InboxState", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_APROVADOR_TECNICO");
+                        .HasColumnType("bigint");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("Equipe")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_EQUIPE_TECNICA");
+                    b.Property<DateTime?>("Consumed")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)")
-                        .HasColumnName("IND_STATUS");
+                    b.Property<Guid>("ConsumerId")
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("Usuario")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_USUARIO_APROVADOR");
+                    b.Property<DateTime?>("Delivered")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpirationTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("LastSequenceNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("LockId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ReceiveCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Received")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea");
 
                     b.HasKey("Id");
 
-                    b.ToTable("APROVADOR_TECNICO", (string)null);
+                    b.HasIndex("Delivered");
+
+                    b.ToTable("InboxState", "esteira");
                 });
 
-            modelBuilder.Entity("Esteira.Domain.ConfiguracoesSistema.Entities.ConfiguracaoSistemaEntity", b =>
+            modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
                 {
-                    b.Property<string>("Sistema")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("SGL_SISTEMA");
-
-                    b.HasKey("Sistema");
-
-                    b.ToTable("CONFIGURACAO_SISTEMA", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.AnaliseEntity", b =>
-                {
-                    b.Property<int>("Id")
+                    b.Property<long>("SequenceNumber")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_ANALISE");
+                        .HasColumnType("bigint");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("SequenceNumber"));
 
-                    b.Property<string>("Ferramenta")
+                    b.Property<string>("Body")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_FERRAMENTA");
+                        .HasColumnType("text");
 
-                    b.Property<int>("IdDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_DEPLOY");
-
-                    b.Property<int>("IdPipeline")
-                        .HasColumnType("integer")
-                        .HasColumnName("COD_PIPELINE");
-
-                    b.Property<string>("ScanId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("COD_SCAN");
-
-                    b.Property<string>("Status")
+                    b.Property<string>("ContentType")
                         .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)")
-                        .HasColumnName("IND_STATUS");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
-                    b.Property<string>("Tag")
+                    b.Property<Guid?>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DestinationAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("EnqueueTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpirationTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FaultAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Headers")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("InboxConsumerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("InboxMessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("InitiatorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MessageType")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("DSC_TAG");
+                        .HasColumnType("text");
 
-                    b.Property<string>("TipoAnalise")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("DSC_TIPO_ANALISE");
+                    b.Property<Guid?>("OutboxId")
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("UrlAlvo")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("DSC_URL_ALVO");
+                    b.Property<string>("Properties")
+                        .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.Property<Guid?>("RequestId")
+                        .HasColumnType("uuid");
 
-                    b.HasIndex("IdDeploy");
+                    b.Property<string>("ResponseAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
-                    b.HasIndex("UrlAlvo")
-                        .IsUnique()
-                        .HasDatabaseName("UK_ANALISE_URL_EXECUTANDO")
-                        .HasFilter("\"DSC_TIPO_ANALISE\" = 'DAST' AND \"IND_STATUS\" = 'EXECUTANDO'");
+                    b.Property<DateTime>("SentTime")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.ToTable("ANALISE", (string)null);
+                    b.Property<string>("SourceAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("SequenceNumber");
+
+                    b.HasIndex("EnqueueTime");
+
+                    b.HasIndex("ExpirationTime");
+
+                    b.HasIndex("OutboxId", "SequenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("InboxMessageId", "InboxConsumerId", "SequenceNumber")
+                        .IsUnique();
+
+                    b.ToTable("OutboxMessage", "esteira");
                 });
 
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.ArtefatoEntity", b =>
+            modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxState", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("OutboxId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_ARTEFATO");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("CatalogoCVE")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("IND_CVE_VULNERABILIDADE");
+                    b.Property<DateTime?>("Delivered")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("CatalogoCWE")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("IND_CWE_VULNERABILIDADE");
+                    b.Property<long?>("LastSequenceNumber")
+                        .HasColumnType("bigint");
 
-                    b.Property<string>("CatalogoOWASP")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("IND_OWASP_VULNERABILIDADE");
+                    b.Property<Guid>("LockId")
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("DescricaoVulnerabilidade")
-                        .HasColumnType("text")
-                        .HasColumnName("CLB_VULNERABILIDADE");
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea");
 
-                    b.Property<int>("IdAnalise")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_ANALISE");
+                    b.HasKey("OutboxId");
 
-                    b.Property<string>("Linha")
-                        .HasColumnType("text")
-                        .HasColumnName("DSC_LINHA_VULNERABILIDADE");
+                    b.HasIndex("Created");
 
-                    b.Property<string>("LocalArquivo")
-                        .HasMaxLength(400)
-                        .HasColumnType("character varying(400)")
-                        .HasColumnName("DSC_LOCAL_ARQUIVO");
-
-                    b.Property<string>("PacoteCorrecao")
-                        .HasMaxLength(800)
-                        .HasColumnType("character varying(800)")
-                        .HasColumnName("CLB_PACOTE_CORRECAO");
-
-                    b.Property<string>("Referencias")
-                        .HasColumnType("text")
-                        .HasColumnName("CLB_REFERENCIAS");
-
-                    b.Property<string>("Severidade")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("IND_SEVERIDADE");
-
-                    b.Property<string>("TituloVulnerabilidade")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("DSC_TITULO_VULNERABILIDADE");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdAnalise");
-
-                    b.ToTable("ARTEFATO", (string)null);
+                    b.ToTable("OutboxState", "esteira");
                 });
 
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.DeployEntity", b =>
+            modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_DEPLOY");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Branch")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("DSC_BRANCH");
-
-                    b.Property<int>("IdFluxoDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    b.Property<int>("IdProjetoGit")
-                        .HasColumnType("integer")
-                        .HasColumnName("COD_PROJETO_GIT");
-
-                    b.Property<string>("Linguagem")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_LINGUAGEM");
-
-                    b.Property<string>("NomeProjetoGit")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("DSC_PROJETO_GIT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)")
-                        .HasColumnName("IND_STATUS");
-
-                    b.Property<string>("VersaoAplicacao")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_VERSAO_APLICACAO");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdFluxoDeploy");
-
-                    b.ToTable("DEPLOY", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.Etapas.Entities.EtapaEntity", b =>
-                {
-                    b.Property<string>("Sigla")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("SGL_ETAPA");
-
-                    b.Property<string>("Descricao")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("DSC_ETAPA");
-
-                    b.Property<string>("Obrigatorio")
-                        .IsRequired()
-                        .HasMaxLength(1)
-                        .HasColumnType("character varying(1)")
-                        .HasColumnName("IND_OBRIGATORIO");
-
-                    b.Property<int?>("Ordem")
-                        .HasColumnType("integer")
-                        .HasColumnName("NUM_ORDEM");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("IND_STATUS");
-
-                    b.HasKey("Sigla");
-
-                    b.ToTable("ETAPA", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployAprovadorNegocioEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_APROVADOR_NEGOCIO");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("IdFluxoDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    b.Property<int>("IdTarefa")
-                        .HasColumnType("integer")
-                        .HasColumnName("COD_TAREFA");
-
-                    b.Property<string>("Url")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("DSC_URL_TAREFA_APROVACAO");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdFluxoDeploy");
-
-                    b.ToTable("FLUXO_DEPLOY_APROV_NEG", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployAprovadorTecnicoEntity", b =>
-                {
-                    b.Property<int>("IdFluxoDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    b.Property<int>("IdAprovadorTecnico")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_APROVADOR_TECNICO");
-
-                    b.Property<string>("Aprovado")
-                        .IsRequired()
-                        .HasMaxLength(1)
-                        .HasColumnType("character varying(1)")
-                        .HasColumnName("IND_APROVADO");
-
-                    b.Property<DateTime?>("Execucao")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("DAT_EXECUCAO");
-
-                    b.Property<string>("Justificativa")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("DSC_JUSTIFICATIVA");
-
-                    b.HasKey("IdFluxoDeploy", "IdAprovadorTecnico");
-
-                    b.HasIndex("IdAprovadorTecnico");
-
-                    b.ToTable("FLUXO_DEPLOY_APROV_TEC", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployBdCrsEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY_BD_CRS");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Crs")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("DSC_CRS");
-
-                    b.Property<int>("IdFluxoDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    b.Property<string>("Url")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("DSC_URL_CRS");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdFluxoDeploy");
-
-                    b.ToTable("FLUXO_DEPLOY_BD_CRS", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("Fim")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("DAT_FIM");
-
-                    b.Property<DateTime>("Inicio")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("DAT_INICIO");
-
-                    b.Property<string>("Sistema")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("SGL_SISTEMA");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)")
-                        .HasColumnName("IND_STATUS");
-
-                    b.Property<string>("Usuario")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_USUARIO_CRIACAO");
-
-                    b.Property<string>("Versao")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_VERSAO");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("FLUXO_DEPLOY", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEtapaEntity", b =>
-                {
-                    b.Property<int>("IdFluxoDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    b.Property<string>("SglEtapa")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("SGL_ETAPA");
-
-                    b.Property<int?>("Ordem")
-                        .HasColumnType("integer")
-                        .HasColumnName("NUM_ORDEM");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)")
-                        .HasColumnName("IND_STATUS");
-
-                    b.HasKey("IdFluxoDeploy", "SglEtapa");
-
-                    b.HasIndex("SglEtapa");
-
-                    b.ToTable("FLUXO_DEPLOY_ETAPA", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployGmudEntity", b =>
-                {
-                    b.Property<int>("IdFluxoDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    b.Property<DateTime>("Execucao")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("DAT_EXECUCAO");
-
-                    b.Property<string>("Justificativa")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("DSC_JUSTIFICATIVA");
-
-                    b.Property<string>("Url")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("DSC_URL_GMUD");
-
-                    b.Property<string>("Usuario")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("DSC_USUARIO");
-
-                    b.HasKey("IdFluxoDeploy");
-
-                    b.ToTable("FLUXO_DEPLOY_GMUD", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployVersaoTarefasEntity", b =>
-                {
-                    b.Property<int>("IdFluxoDeploy")
-                        .HasColumnType("integer")
-                        .HasColumnName("ID_FLUXO_DEPLOY");
-
-                    b.Property<int>("IdProjeto")
-                        .HasColumnType("integer")
-                        .HasColumnName("COD_PROJETO");
-
-                    b.Property<int>("IdVersao")
-                        .HasColumnType("integer")
-                        .HasColumnName("COD_VERSAO");
-
-                    b.HasKey("IdFluxoDeploy");
-
-                    b.ToTable("FLUXO_DEPLOY_VERSAO_TAREFAS", (string)null);
-                });
-
-            modelBuilder.Entity("Esteira.Domain.ConfiguracoesSistema.Entities.ConfiguracaoSistemaEntity", b =>
-                {
-                    b.OwnsOne("Esteira.Domain.ConfiguracoesSistema.ValueObjects.LimitesSeveridadeValueObject", "Limites", b1 =>
-                        {
-                            b1.Property<string>("ConfiguracaoSistemaEntitySistema")
-                                .HasColumnType("character varying(30)");
-
-                            b1.Property<int>("VulnerabilidadeAlta")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_ALTA");
-
-                            b1.Property<int>("VulnerabilidadeBaixa")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_BAIXA");
-
-                            b1.Property<int>("VulnerabilidadeCritica")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_CRITICA");
-
-                            b1.Property<int>("VulnerabilidadeMedia")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_MEDIA");
-
-                            b1.HasKey("ConfiguracaoSistemaEntitySistema");
-
-                            b1.ToTable("CONFIGURACAO_SISTEMA");
-
-                            b1.WithOwner()
-                                .HasForeignKey("ConfiguracaoSistemaEntitySistema");
-                        });
-
-                    b.Navigation("Limites")
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.AnaliseEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.Deploys.Entities.DeployEntity", null)
-                        .WithMany("Analises")
-                        .HasForeignKey("IdDeploy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.OwnsOne("Esteira.Domain.Common.ValueObjects.ResumoSeveridadeValueObject", "Resumo", b1 =>
-                        {
-                            b1.Property<int>("AnaliseEntityId")
-                                .HasColumnType("integer");
-
-                            b1.Property<int>("VulnerabilidadeAlta")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_ALTA");
-
-                            b1.Property<int>("VulnerabilidadeBaixa")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_BAIXA");
-
-                            b1.Property<int>("VulnerabilidadeCritica")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_CRITICA");
-
-                            b1.Property<int>("VulnerabilidadeMedia")
-                                .HasColumnType("integer")
-                                .HasColumnName("NUM_VULNERABILIDADE_MEDIA");
-
-                            b1.HasKey("AnaliseEntityId");
-
-                            b1.ToTable("ANALISE");
-
-                            b1.WithOwner()
-                                .HasForeignKey("AnaliseEntityId");
-                        });
-
-                    b.Navigation("Resumo")
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.ArtefatoEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.Deploys.Entities.AnaliseEntity", null)
-                        .WithMany("Artefatos")
-                        .HasForeignKey("IdAnalise")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.DeployEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", null)
+                    b.HasOne("MassTransit.EntityFrameworkCoreIntegration.OutboxState", null)
                         .WithMany()
-                        .HasForeignKey("IdFluxoDeploy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
+                        .HasForeignKey("OutboxId");
 
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployAprovadorNegocioEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", null)
-                        .WithMany("AprovadoresNegocio")
-                        .HasForeignKey("IdFluxoDeploy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployAprovadorTecnicoEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.AprovadoresTecnicos.Entities.AprovadorTecnicoEntity", null)
+                    b.HasOne("MassTransit.EntityFrameworkCoreIntegration.InboxState", null)
                         .WithMany()
-                        .HasForeignKey("IdAprovadorTecnico")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", null)
-                        .WithMany("AprovadoresTecnicos")
-                        .HasForeignKey("IdFluxoDeploy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployBdCrsEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", null)
-                        .WithMany("Bds")
-                        .HasForeignKey("IdFluxoDeploy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEtapaEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", null)
-                        .WithMany("Etapas")
-                        .HasForeignKey("IdFluxoDeploy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Esteira.Domain.Etapas.Entities.EtapaEntity", null)
-                        .WithMany()
-                        .HasForeignKey("SglEtapa")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployGmudEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", null)
-                        .WithOne("Gmud")
-                        .HasForeignKey("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployGmudEntity", "IdFluxoDeploy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployVersaoTarefasEntity", b =>
-                {
-                    b.HasOne("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", null)
-                        .WithOne("VersaoTarefas")
-                        .HasForeignKey("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployVersaoTarefasEntity", "IdFluxoDeploy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.AnaliseEntity", b =>
-                {
-                    b.Navigation("Artefatos");
-                });
-
-            modelBuilder.Entity("Esteira.Domain.Deploys.Entities.DeployEntity", b =>
-                {
-                    b.Navigation("Analises");
-                });
-
-            modelBuilder.Entity("Esteira.Domain.FluxosDeploy.Entities.FluxoDeployEntity", b =>
-                {
-                    b.Navigation("AprovadoresNegocio");
-
-                    b.Navigation("AprovadoresTecnicos");
-
-                    b.Navigation("Bds");
-
-                    b.Navigation("Etapas");
-
-                    b.Navigation("Gmud");
-
-                    b.Navigation("VersaoTarefas");
+                        .HasForeignKey("InboxMessageId", "InboxConsumerId")
+                        .HasPrincipalKey("MessageId", "ConsumerId");
                 });
 #pragma warning restore 612, 618
         }
