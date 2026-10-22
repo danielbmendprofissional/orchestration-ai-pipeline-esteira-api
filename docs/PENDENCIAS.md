@@ -23,17 +23,17 @@ Documento de contexto para continuar a evolução do projeto. Atualizado em 2026
 
 ## Refatoração do modelo (discovery 2026-10-21/22)
 
-O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias de `specs/README.md`; isto é o mapa do que muda.
+A fatia M0 (2026-10-22) removeu todo o modelo herdado do sistema legado e deixou o esqueleto; o que está em "Muda" e "Entra" nasce nas fatias de `specs/README.md`.
 
 ### Sai
-- [ ] Etapas **GMUD**, **BD** (CRS de banco), **VERSAO** e a **AET única** — `FluxoDeployGmudEntity`, `FluxoDeployBdCrsEntity`, `FluxoDeployVersaoTarefasEntity`, os `Etapa*Service`/`*Rules` correspondentes, controllers `FluxoDeployBancoDadosCrs*`/`Vinculos` e o que for só deles.
-- [ ] **DAST próprio** — `IScannerDast`, `ScannerDastNaoConfigurado`, `AnaliseDastJob`, consumers/mensagens DAST, índice "uma análise por URL". Quem roda o ZAP é o template; o resultado chega pelo `esteira-resultado`.
-- [ ] **`IMigracaoBancoDados`** — migration roda no deploy do template.
-- [ ] **Regra dos 2 fluxos por sistema** e "deploy vai pro fluxo da etapa da branch".
-- [ ] **`POST /api/artefato`** (multipart com Semgrep/Trivy do sistema legado) e os DTOs `SemgrepDtoRequest`/`TrivyDtoRequest`.
-- [ ] **"Somente o criador altera o fluxo"** (`AutorizacaoBehavior`) — substituído pelos papéis por Aplicação.
-- [ ] **"Liberar fluxo sem validação"** (pendência antiga) — não existe: Esteira é fail-closed sem bypass; o MOR aprova com autoaprovação marcada.
-- [ ] **"Burla de tag em HML"** (pendência antiga) — resolvida: tags `v*` protegidas e criadas só pelo bot, linhagem validada pelo `controlar-pipeline`, regra de descendência na Esteira.
+- [x] Etapas **GMUD**, **BD** (CRS de banco), **VERSAO** e a **AET única** — `FluxoDeployGmudEntity`, `FluxoDeployBdCrsEntity`, `FluxoDeployVersaoTarefasEntity`, os `Etapa*Service`/`*Rules` correspondentes, controllers `FluxoDeployBancoDadosCrs*`/`Vinculos` e o que for só deles.
+- [x] **DAST próprio** — `IScannerDast`, `ScannerDastNaoConfigurado`, `AnaliseDastJob`, consumers/mensagens DAST, índice "uma análise por URL". Quem roda o ZAP é o template; o resultado chega pelo `esteira-resultado`.
+- [x] **`IMigracaoBancoDados`** — migration roda no deploy do template.
+- [x] **Regra dos 2 fluxos por sistema** e "deploy vai pro fluxo da etapa da branch".
+- [x] **`POST /api/artefato`** (multipart com Semgrep/Trivy do sistema legado) e os DTOs `SemgrepDtoRequest`/`TrivyDtoRequest`.
+- [x] **"Somente o criador altera o fluxo"** (`AutorizacaoBehavior`) — substituído pelos papéis por Aplicação.
+- [x] **"Liberar fluxo sem validação"** (pendência antiga) — não existe: Esteira é fail-closed sem bypass; o MOR aprova com autoaprovação marcada.
+- [x] **"Burla de tag em HML"** (pendência antiga) — resolvida: tags `v*` protegidas e criadas só pelo bot, linhagem validada pelo `controlar-pipeline`, regra de descendência na Esteira.
 
 ### Muda
 - [ ] **Sistema → Aplicação.** Aplicação aponta para um grupo do GitLab e tem Projetos (um repositório cada, com stack). `ConfiguracaoSistema` vira a **política de severidade da Aplicação por Ambiente** (`LimitesSeveridadeValueObject` por Ambiente; padrão: dev avisa, qa/hml/prd bloqueiam CRITICAL+HIGH).
@@ -65,7 +65,7 @@ O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias 
 - [ ] **Endpoint de permissões para o front.** `GET /api/fluxo-deploy/{id}/permissoes` devolvendo o que o usuário pode fazer, calculado pelas mesmas regras do backend (papéis da Aplicação + MOR).
 
 ### Mensageria e eventos
-- [ ] **Outbox e inbox com tabela — fase 1, junto da M0** (ADR-0010: as Ações do bot dependem dele). Hoje é em memória (`UseInMemoryInboxOutbox`), então reiniciar o processo perde o controle. Com EF Core 10 o `MassTransit.EntityFrameworkCore` passa a ser compatível; avaliar com PostgreSQL.
+- [x] **Outbox e inbox com tabela** (ADR-0010) — feito na M0 (`MassTransit.EntityFrameworkCore` + Postgres), coberto por `Esteira.Integration.Tests`.
 - [ ] **Integration events.** `IIntegrationEvent` gerado pelos domain event handlers e publicado pelo outbox após o commit (ex.: fluxo concluído → avisar outros sistemas).
 - [ ] **Retry** nos consumers que só gravam no banco (processamento de relatórios).
 - [ ] **Exchanges por ambiente.** Hoje é sufixo `-hml`/`-prd` no nome. Avaliar virtual host por ambiente.
@@ -76,8 +76,8 @@ O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias 
 - [ ] **Cache centralizado.** Já existe `ICacheService` + `CacheBehavior`; candidatos: papéis por Aplicação, política de severidade, JWKS do GitLab.
 
 ### Qualidade
-- [ ] **Testes de integração.** Os testes atuais são de Domain e Application com mocks. Criar testes da camada Data e da API contra PostgreSQL real (ex.: Testcontainers).
-- [ ] **View de resumo** (`VW_FLUXO_DEPLOY_RESUMO`) — refazer sobre o modelo novo (Entrega/Fluxo/Candidata).
+- [x] **Testes de integração** — `Esteira.Integration.Tests` (Testcontainers) criado na M0; cada fatia nova acrescenta os seus.
+- [ ] **Resumo para listagens** — a view `VW_FLUXO_DEPLOY_RESUMO` saiu na M0; a listagem de Entregas/Fluxos (E1) decide se volta como view ou projeção.
 
 ## Como rodar
 

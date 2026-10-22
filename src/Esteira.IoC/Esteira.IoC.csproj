@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.11" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,6 +16,7 @@
     <ProjectReference Include="..\Esteira.Application\Esteira.Application.csproj" />
     <ProjectReference Include="..\Esteira.Data\Esteira.Data.csproj" />
     <ProjectReference Include="..\Esteira.Infra.Cache\Esteira.Infra.Cache.csproj" />
+    <ProjectReference Include="..\Esteira.Messaging\Esteira.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

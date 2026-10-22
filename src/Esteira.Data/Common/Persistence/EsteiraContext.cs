@@ -1,15 +1,6 @@
 using Esteira.Application.Common.Events;
-using Esteira.Data.AprovadoresTecnicos.Persistence.Configurations.Write;
-using Esteira.Data.ConfiguracoesSistema.Persistence.Configurations.Write;
-using Esteira.Data.Deploys.Persistence.Configurations.Write;
-using Esteira.Data.Etapas.Persistence.Configurations.Write;
-using Esteira.Data.FluxosDeploy.Persistence.Configurations.Write;
-using Esteira.Domain.AprovadoresTecnicos.Entities;
 using Esteira.Domain.Common.Base;
-using Esteira.Domain.ConfiguracoesSistema.Entities;
-using Esteira.Domain.Deploys.Entities;
-using Esteira.Domain.Etapas.Entities;
-using Esteira.Domain.FluxosDeploy.Entities;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace Esteira.Data.Common.Persistence
@@ -26,35 +17,13 @@ namespace Esteira.Data.Common.Persistence
             _domainEventDispatcher = domainEventDispatcher;
         }
 
-        public DbSet<FluxoDeployEntity> FluxosDeploy => Set<FluxoDeployEntity>();
-        public DbSet<DeployEntity> Deploys => Set<DeployEntity>();
-        public DbSet<EtapaEntity> Etapas => Set<EtapaEntity>();
-        public DbSet<AprovadorTecnicoEntity> AprovadoresTecnicos => Set<AprovadorTecnicoEntity>();
-        public DbSet<ConfiguracaoSistemaEntity> ConfiguracoesSistema => Set<ConfiguracaoSistemaEntity>();
-
-        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-        {
-            configurationBuilder.Properties<DateTime>().HaveColumnType("timestamp without time zone");
-            configurationBuilder.Properties<DateTime?>().HaveColumnType("timestamp without time zone");
-        }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.ApplyConfiguration(new FluxoDeployConfiguration());
-            modelBuilder.ApplyConfiguration(new FluxoDeployEtapaConfiguration());
-            modelBuilder.ApplyConfiguration(new FluxoDeployBdCrsConfiguration());
-            modelBuilder.ApplyConfiguration(new FluxoDeployAprovadorNegocioConfiguration());
-            modelBuilder.ApplyConfiguration(new FluxoDeployAprovadorTecnicoConfiguration());
-            modelBuilder.ApplyConfiguration(new FluxoDeployGmudConfiguration());
-            modelBuilder.ApplyConfiguration(new FluxoDeployVersaoTarefasConfiguration());
-
-            modelBuilder.ApplyConfiguration(new DeployConfiguration());
-            modelBuilder.ApplyConfiguration(new AnaliseConfiguration());
-            modelBuilder.ApplyConfiguration(new ArtefatoConfiguration());
-
-            modelBuilder.ApplyConfiguration(new EtapaConfiguration());
-            modelBuilder.ApplyConfiguration(new AprovadorTecnicoConfiguration());
-            modelBuilder.ApplyConfiguration(new ConfiguracaoSistemaConfiguration());
+            // Outbox e inbox do MassTransit (ADR-0010): mensagem publicada num command
+            // grava na mesma transação do SaveChanges.
+            modelBuilder.AddInboxStateEntity();
+            modelBuilder.AddOutboxMessageEntity();
+            modelBuilder.AddOutboxStateEntity();
 
             base.OnModelCreating(modelBuilder);
         }
