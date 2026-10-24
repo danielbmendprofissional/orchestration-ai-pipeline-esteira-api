@@ -1,4 +1,5 @@
 using Esteira.Api.Autenticacao;
+using Esteira.Api.Erros;
 using Esteira.Api.Middleware;
 using Esteira.Api.Paginacao;
 using Esteira.Application.Interfaces.Usuario;
@@ -39,7 +40,11 @@ builder.Host.UseSerilog((context, services, configuration) =>
 });
 
 builder.Services
-    .AddControllers(options => options.Filters.Add<PaginacaoResultFilter>())
+    .AddControllers(options =>
+    {
+        options.Filters.Add<PaginacaoResultFilter>();
+        options.Filters.Add<ResultadoFilter>();
+    })
     .AddNewtonsoftJson(opt =>
     {
         opt.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
