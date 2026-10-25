@@ -81,6 +81,7 @@ Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientSecret");
 Configuracao.Obrigatoria(builder.Configuration, "Autenticacao:UrlPublica");
 builder.Services.AddHttpClient<IProvedorOidc, ProvedorOidcKeycloak>();
 builder.Services.AddScoped<FluxoLogin>();
+builder.Services.AddScoped<FluxoSessao>();
 // Sessão BFF (ADR-0004): cookie opaco -> sessão no Redis. Sem JWT Bearer.
 builder.Services
     .AddAuthentication(SessaoAuthenticationHandler.Esquema)

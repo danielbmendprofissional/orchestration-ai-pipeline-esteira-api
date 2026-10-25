@@ -13,5 +13,9 @@ namespace Esteira.Api.Autenticacao
         Task<EndpointsOidc> ObterEndpointsAsync();
 
         Task<Result<TokensOidc>> TrocarCodeAsync(string code, string codeVerifier, string redirectUri);
+
+        // Rotação do refresh token. Falha `auth.sessao-invalida` = o Keycloak recusou o token (invalid_grant:
+        // já usado ou revogado); `auth.provedor-indisponivel` = não deu para falar com ele (a sessão segue válida).
+        Task<Result<TokensOidc>> RenovarAsync(string refreshToken);
     }
 }

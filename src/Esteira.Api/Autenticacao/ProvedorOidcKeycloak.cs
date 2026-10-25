@@ -40,20 +40,37 @@ namespace Esteira.Api.Autenticacao
                 ["code_verifier"] = codeVerifier
             });
 
+        public async Task<Result<TokensOidc>> RenovarAsync(string refreshToken)
+            => await ChamarTokenAsync(new Dictionary<string, string>
+            {
+                ["grant_type"] = "refresh_token",
+                ["refresh_token"] = refreshToken
+            });
+
         private async Task<Result<TokensOidc>> ChamarTokenAsync(Dictionary<string, string> campos)
         {
             campos["client_id"] = configuracao["Keycloak:ClientId"]!;
             campos["client_secret"] = configuracao["Keycloak:ClientSecret"]!;
 
-            var endpoints = await ObterEndpointsAsync();
-            using var resposta = await http.PostAsync(endpoints.Token, new FormUrlEncodedContent(campos));
-            var corpo = await resposta.Content.ReadAsStringAsync();
+            HttpResponseMessage resposta;
+            string corpo;
 
-            if (!resposta.IsSuccessStatusCode)
+            try
             {
-                // O corpo do erro do Keycloak (error/error_description) não contém token; vai só pro log.
-                log.LogWarning("Keycloak recusou a troca de token ({Status}): {Corpo}", (int)resposta.StatusCode, corpo);
-                return Result<TokensOidc>.Falha(new Erro("auth.login-falhou", "Não foi possível concluir o login.", TipoErro.Unauthorized));
+                var endpoints = await ObterEndpointsAsync();
+                resposta = await http.PostAsync(endpoints.Token, new FormUrlEncodedContent(campos));
+                corpo = await resposta.Content.ReadAsStringAsync();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                log.LogError(ex, "Keycloak indisponível na chamada de token");
+                return Result<TokensOidc>.Falha(new Erro("auth.provedor-indisponivel", "Serviço de login indisponível. Tente de novo.", TipoErro.Failure));
+            }
+
+            using (resposta)
+            {
+                if (!resposta.IsSuccessStatusCode)
+                    return RecusaDoToken(resposta, corpo, campos["grant_type"]);
             }
 
             using var doc = JsonDocument.Parse(corpo);
@@ -65,6 +82,21 @@ namespace Esteira.Api.Autenticacao
                 raiz.TryGetProperty("id_token", out var id) ? id.GetString()! : string.Empty,
                 raiz.GetProperty("expires_in").GetInt32(),
                 raiz.TryGetProperty("refresh_expires_in", out var re) ? re.GetInt32() : 0));
+        }
+
+        // O corpo do erro do Keycloak (error/error_description) não leva token; vai só pro log.
+        private Result<TokensOidc> RecusaDoToken(HttpResponseMessage resposta, string corpo, string grant)
+        {
+            log.LogWarning("Keycloak recusou {Grant} ({Status}): {Corpo}", grant, (int)resposta.StatusCode, corpo);
+
+            if (grant != "refresh_token")
+                return Result<TokensOidc>.Falha(new Erro("auth.login-falhou", "Não foi possível concluir o login.", TipoErro.Unauthorized));
+
+            // Só invalid_grant prova que o refresh token foi usado ou revogado (reuse detection). Qualquer outra
+            // recusa (5xx, invalid_client por configuração) não é culpa da sessão e não pode derrubá-la.
+            return corpo.Contains("invalid_grant", StringComparison.Ordinal)
+                ? Result<TokensOidc>.Falha(new Erro("auth.sessao-invalida", "Sua sessão não é mais válida. Entre de novo.", TipoErro.Unauthorized))
+                : Result<TokensOidc>.Falha(new Erro("auth.provedor-indisponivel", "Serviço de login indisponível. Tente de novo.", TipoErro.Failure));
         }
     }
 }

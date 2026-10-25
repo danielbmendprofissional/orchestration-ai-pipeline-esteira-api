@@ -24,6 +24,31 @@ namespace Esteira.Integration.Tests.Http
         public Func<string, Result<TokensOidc>> ResponderTroca { get; set; } =
             _ => Result<TokensOidc>.Falha(new Erro("auth.login-falhou", "recusado", TipoErro.Unauthorized));
 
+        private readonly List<string> _renovacoes = [];
+
+        // Refresh tokens que chegaram ao provedor, na ordem.
+        public IReadOnlyList<string> Renovacoes
+        {
+            get { lock (_renovacoes) return _renovacoes.ToArray(); }
+        }
+
+        // Padrão: recusa como invalid_grant.
+        public Func<string, Result<TokensOidc>> ResponderRenovacao { get; set; } =
+            _ => Result<TokensOidc>.Falha(new Erro("auth.sessao-invalida", "recusado", TipoErro.Unauthorized));
+
+        // Deixa a renovação demorar, para chamadas paralelas se sobreporem de verdade.
+        public TimeSpan AtrasoNaRenovacao { get; set; } = TimeSpan.Zero;
+
+        public async Task<Result<TokensOidc>> RenovarAsync(string refreshToken)
+        {
+            lock (_renovacoes) _renovacoes.Add(refreshToken);
+
+            if (AtrasoNaRenovacao > TimeSpan.Zero)
+                await Task.Delay(AtrasoNaRenovacao);
+
+            return ResponderRenovacao(refreshToken);
+        }
+
         public Task<EndpointsOidc> ObterEndpointsAsync() => Task.FromResult(Endpoints);
 
         public Task<Result<TokensOidc>> TrocarCodeAsync(string code, string codeVerifier, string redirectUri)
