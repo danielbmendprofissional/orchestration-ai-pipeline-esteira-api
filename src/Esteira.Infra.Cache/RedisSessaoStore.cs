@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Esteira.Application.Interfaces.Sessao;
 using StackExchange.Redis;
@@ -29,9 +30,19 @@ namespace Esteira.Infra.Cache
         public async Task CriarAsync(SessaoUsuario sessao, TimeSpan duracao)
         {
             await Banco.StringSetAsync(ChaveSessao(sessao.Id), JsonSerializer.Serialize(sessao), duracao);
+            await IndexarAsync(sessao, duracao);
+        }
+
+        // O índice só estende o TTL: uma sessão de vida curta não pode encurtar o índice de outra, mais longa,
+        // senão a revogação geral deixaria essa outra viva.
+        private async Task IndexarAsync(SessaoUsuario sessao, TimeSpan duracao)
+        {
             var indice = ChaveIndice(sessao.Sub);
             await Banco.SetAddAsync(indice, sessao.Id);
-            await Banco.KeyExpireAsync(indice, duracao);
+            var atual = await Banco.KeyTimeToLiveAsync(indice);
+
+            if (atual is null || atual < duracao)
+                await Banco.KeyExpireAsync(indice, duracao);
         }
 
         public async Task<SessaoUsuario?> ObterAsync(string id)
@@ -40,7 +51,16 @@ namespace Esteira.Infra.Cache
             return valor.IsNullOrEmpty ? null : JsonSerializer.Deserialize<SessaoUsuario>((string)valor!);
         }
 
-        public Task AtualizarAsync(SessaoUsuario sessao, TimeSpan duracao) => CriarAsync(sessao, duracao);
+        // SET ... XX: se o logout ou a revogação geral apagou a sessão durante o refresh, ela não ressuscita.
+        public async Task<bool> AtualizarAsync(SessaoUsuario sessao, TimeSpan duracao)
+        {
+            var atualizou = await Banco.StringSetAsync(ChaveSessao(sessao.Id), JsonSerializer.Serialize(sessao), duracao, When.Exists);
+
+            if (atualizou)
+                await IndexarAsync(sessao, duracao);
+
+            return atualizou;
+        }
 
         public async Task RevogarAsync(string id)
         {
@@ -77,9 +97,20 @@ namespace Esteira.Infra.Cache
             return JsonSerializer.Deserialize<ContextoLogin>((string)valor!);
         }
 
-        public Task<bool> TentarTravarRefreshAsync(string id)
-            => Banco.StringSetAsync(ChaveTrava(id), "1", DuracaoDaTrava, When.NotExists);
+        public async Task<string?> TentarTravarRefreshAsync(string id)
+        {
+            var dono = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+            return await Banco.StringSetAsync(ChaveTrava(id), dono, DuracaoDaTrava, When.NotExists) ? dono : null;
+        }
 
-        public Task LiberarRefreshAsync(string id) => Banco.KeyDeleteAsync(ChaveTrava(id));
+        // Só o dono libera: se a trava venceu e outra chamada a retomou, a primeira não pode apagar a alheia.
+        // GET + DEL (a ACL nega script); a janela entre os dois é a do TTL da trava, não de uma troca inteira.
+        public async Task LiberarRefreshAsync(string id, string dono)
+        {
+            var chave = ChaveTrava(id);
+
+            if ((string?)await Banco.StringGetAsync(chave) == dono)
+                await Banco.KeyDeleteAsync(chave);
+        }
     }
 }

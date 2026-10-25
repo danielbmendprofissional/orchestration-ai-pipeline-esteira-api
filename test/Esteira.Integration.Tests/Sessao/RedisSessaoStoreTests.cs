@@ -123,16 +123,43 @@ namespace Esteira.Integration.Tests.Sessao
         }
 
         [Fact]
-        public async Task Trava_de_refresh_e_exclusiva_ate_ser_liberada_e_tem_ttl_curto()
+        public async Task Trava_de_refresh_e_exclusiva_so_o_dono_libera_e_tem_ttl_curto()
         {
-            (await _store.TentarTravarRefreshAsync("s1")).Should().BeTrue();
-            (await _store.TentarTravarRefreshAsync("s1")).Should().BeFalse();
+            var dono = await _store.TentarTravarRefreshAsync("s1");
+            dono.Should().NotBeNullOrEmpty();
+            (await _store.TentarTravarRefreshAsync("s1")).Should().BeNull();
             var ttl = await _admin.GetDatabase().KeyTimeToLiveAsync($"{_prefixo}refresh:s1");
             ttl!.Value.Should().BeLessThanOrEqualTo(TimeSpan.FromSeconds(10));
 
-            await _store.LiberarRefreshAsync("s1");
+            // Quem não é o dono (trava vencida e retomada por outra chamada) não derruba a trava alheia.
+            await _store.LiberarRefreshAsync("s1", "dono-errado");
+            (await _store.TentarTravarRefreshAsync("s1")).Should().BeNull();
 
-            (await _store.TentarTravarRefreshAsync("s1")).Should().BeTrue();
+            await _store.LiberarRefreshAsync("s1", dono!);
+            (await _store.TentarTravarRefreshAsync("s1")).Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task Atualizar_de_sessao_revogada_nao_a_recria_nem_reindexa()
+        {
+            await _store.CriarAsync(Sessao("s1"), TimeSpan.FromSeconds(60));
+            await _store.RevogarAsync("s1");
+
+            var atualizou = await _store.AtualizarAsync(Sessao("s1", access: "ressuscitou"), TimeSpan.FromSeconds(60));
+
+            atualizou.Should().BeFalse();
+            (await _store.ObterAsync("s1")).Should().BeNull();
+            (await _admin.GetDatabase().SetContainsAsync($"{_prefixo}usuario:user-1:sessoes", "s1")).Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task Sessao_de_TTL_menor_nao_encurta_o_indice_de_outra_de_TTL_maior()
+        {
+            await _store.CriarAsync(Sessao("longa"), TimeSpan.FromSeconds(600));
+            await _store.CriarAsync(Sessao("curta"), TimeSpan.FromSeconds(30));
+
+            var ttl = await _admin.GetDatabase().KeyTimeToLiveAsync($"{_prefixo}usuario:user-1:sessoes");
+            ttl!.Value.Should().BeGreaterThan(TimeSpan.FromSeconds(500));
         }
 
         [Fact]

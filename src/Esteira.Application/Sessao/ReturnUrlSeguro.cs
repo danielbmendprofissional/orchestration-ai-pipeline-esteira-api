@@ -5,10 +5,11 @@ namespace Esteira.Application.Sessao
     public static class ReturnUrlSeguro
     {
         public const string Raiz = "/";
+        public const int TamanhoMaximo = 512;
 
         public static string Normalizar(string? returnUrl)
         {
-            if (string.IsNullOrWhiteSpace(returnUrl) || returnUrl[0] != '/')
+            if (string.IsNullOrWhiteSpace(returnUrl) || returnUrl.Length > TamanhoMaximo || returnUrl[0] != '/')
                 return Raiz;
 
             if (returnUrl.Length > 1 && (returnUrl[1] == '/' || returnUrl[1] == (char)92))

@@ -26,7 +26,7 @@ namespace Esteira.Api.Autenticacao
         // sessão e quem esperou a trava só confere se outro chamador já renovou.
         public async Task<Result> RenovarAsync(string? sessaoId)
         {
-            if (string.IsNullOrEmpty(sessaoId))
+            if (!IdentificadorSeguro.Valido(sessaoId))
                 return Result.Falha(NaoAutenticado);
 
             var inicial = await sessoes.ObterAsync(sessaoId);
@@ -34,7 +34,9 @@ namespace Esteira.Api.Autenticacao
             if (inicial is null)
                 return Result.Falha(NaoAutenticado);
 
-            if (!await AguardarTravaAsync(sessaoId))
+            var dono = await AguardarTravaAsync(sessaoId);
+
+            if (dono is null)
             {
                 log.LogWarning("Trava de refresh não liberou a tempo para a sessão");
                 return Result.Falha(new Erro("auth.provedor-indisponivel", "Tente de novo em instantes.", TipoErro.Failure));
@@ -58,7 +60,7 @@ namespace Esteira.Api.Autenticacao
 
                 var tokens = troca.Value;
                 var duracao = tokens.RefreshExpiresIn > 0 ? TimeSpan.FromSeconds(tokens.RefreshExpiresIn) : DuracaoPadraoDaSessao;
-                await sessoes.AtualizarAsync(
+                var atualizou = await sessoes.AtualizarAsync(
                     atual with
                     {
                         AccessToken = tokens.AccessToken,
@@ -69,11 +71,12 @@ namespace Esteira.Api.Autenticacao
                     },
                     duracao);
 
-                return Result.Sucesso();
+                // Logout ou revogação geral durante a troca: a sessão não volta com os tokens novos.
+                return atualizou ? Result.Sucesso() : Result.Falha(NaoAutenticado);
             }
             finally
             {
-                await sessoes.LiberarRefreshAsync(sessaoId);
+                await sessoes.LiberarRefreshAsync(sessaoId, dono);
             }
         }
 
@@ -83,7 +86,7 @@ namespace Esteira.Api.Autenticacao
         {
             var raiz = new Uri(ReturnUrlSeguro.Raiz, UriKind.Relative);
 
-            if (string.IsNullOrEmpty(sessaoId))
+            if (!IdentificadorSeguro.Valido(sessaoId))
                 return raiz;
 
             var sessao = await sessoes.ObterAsync(sessaoId);
@@ -107,19 +110,22 @@ namespace Esteira.Api.Autenticacao
             return new Uri(QueryHelpers.AddQueryString(endpoints.EndSession.ToString(), parametros));
         }
 
-        private async Task<bool> AguardarTravaAsync(string sessaoId)
+        private async Task<string?> AguardarTravaAsync(string sessaoId)
         {
             var limite = DateTimeOffset.UtcNow + EsperaMaximaPelaTrava;
 
-            while (!await sessoes.TentarTravarRefreshAsync(sessaoId))
+            while (true)
             {
+                var dono = await sessoes.TentarTravarRefreshAsync(sessaoId);
+
+                if (dono is not null)
+                    return dono;
+
                 if (DateTimeOffset.UtcNow >= limite)
-                    return false;
+                    return null;
 
                 await Task.Delay(IntervaloDaTrava);
             }
-
-            return true;
         }
 
         private async Task<Result> TratarFalhaAsync(SessaoUsuario sessao, Erro erro)

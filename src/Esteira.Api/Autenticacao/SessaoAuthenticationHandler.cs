@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Esteira.Api.Erros;
 using Esteira.Application.Interfaces.Sessao;
+using Esteira.Application.Sessao;
 using Esteira.Domain.Common.Resultados;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
@@ -13,7 +13,7 @@ namespace Esteira.Api.Autenticacao
     // Esquema de autenticação do BFF (ADR-0004): o cookie opaco `esteira_session` aponta para a sessão no Redis,
     // de onde saem os claims. Access token vencido não é renovado aqui (sem refresh síncrono): vira 401
     // `auth.access-token-expired` e o front chama POST /auth/refresh.
-    public sealed partial class SessaoAuthenticationHandler(
+    public sealed class SessaoAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
@@ -26,13 +26,10 @@ namespace Esteira.Api.Autenticacao
 
         private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-        // O id é gerado pela API (32 bytes em base64url); o que não tem essa forma nem chega ao Redis.
-        [GeneratedRegex("^[A-Za-z0-9_-]{16,64}$")]
-        private static partial Regex FormatoDoId();
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            if (!Request.Cookies.TryGetValue(CookieSessao.Nome, out var id) || !FormatoDoId().IsMatch(id))
+            if (!Request.Cookies.TryGetValue(CookieSessao.Nome, out var id) || !IdentificadorSeguro.Valido(id))
                 return AuthenticateResult.NoResult();
 
             var sessao = await sessoes.ObterAsync(id);

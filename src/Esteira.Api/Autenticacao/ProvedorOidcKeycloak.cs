@@ -84,10 +84,10 @@ namespace Esteira.Api.Autenticacao
                 raiz.TryGetProperty("refresh_expires_in", out var re) ? re.GetInt32() : 0));
         }
 
-        // O corpo do erro do Keycloak (error/error_description) não leva token; vai só pro log.
+        // Só o status e o campo `error` vão pro log: o corpo inteiro não, caso um proxy ou outra versão do Keycloak ponha dado nele.
         private Result<TokensOidc> RecusaDoToken(HttpResponseMessage resposta, string corpo, string grant)
         {
-            log.LogWarning("Keycloak recusou {Grant} ({Status}): {Corpo}", grant, (int)resposta.StatusCode, corpo);
+            log.LogWarning("Keycloak recusou {Grant} ({Status}): {Erro}", grant, (int)resposta.StatusCode, CampoError(corpo));
 
             if (grant != "refresh_token")
                 return Result<TokensOidc>.Falha(new Erro("auth.login-falhou", "Não foi possível concluir o login.", TipoErro.Unauthorized));
@@ -97,6 +97,21 @@ namespace Esteira.Api.Autenticacao
             return corpo.Contains("invalid_grant", StringComparison.Ordinal)
                 ? Result<TokensOidc>.Falha(new Erro("auth.sessao-invalida", "Sua sessão não é mais válida. Entre de novo.", TipoErro.Unauthorized))
                 : Result<TokensOidc>.Falha(new Erro("auth.provedor-indisponivel", "Serviço de login indisponível. Tente de novo.", TipoErro.Failure));
+        }
+
+        private static string CampoError(string corpo)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(corpo);
+                return doc.RootElement.TryGetProperty("error", out var erro) && erro.ValueKind == JsonValueKind.String
+                    ? erro.GetString()![..Math.Min(erro.GetString()!.Length, 40)]
+                    : "desconhecido";
+            }
+            catch (JsonException)
+            {
+                return "desconhecido";
+            }
         }
     }
 }

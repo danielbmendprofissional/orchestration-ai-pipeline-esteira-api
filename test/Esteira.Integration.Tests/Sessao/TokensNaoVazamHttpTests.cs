@@ -26,6 +26,14 @@ namespace Esteira.Integration.Tests.Sessao
             _cliente = api.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = false });
         }
 
+        // Devolve o cookie de login que o navegador recebeu em /auth/login (HandleCookies está desligado).
+        private Task<HttpResponseMessage> CallbackAsync(string code, string state, HttpResponseMessage login)
+        {
+            var pedido = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/auth/callback?code={code}&state={state}");
+            pedido.Headers.Add("Cookie", login.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("esteira_login=")).Split(";")[0]);
+            return _cliente.SendAsync(pedido, TestContext.Current.CancellationToken);
+        }
+
         private static async Task<string> TextoDaRespostaAsync(HttpResponseMessage resposta)
         {
             var texto = new StringBuilder();
@@ -51,7 +59,7 @@ namespace Esteira.Integration.Tests.Sessao
             tokensDoLogin = tokensDoLogin with { IdToken = ProvedorOidcFalso.Jwt(new { sub, nonce = query["nonce"].ToString() }) };
             _provedor.ResponderTroca = _ => Result<TokensOidc>.Sucesso(tokensDoLogin);
 
-            var callback = await _cliente.GetAsync($"/api/v1/auth/callback?code=c-{marcador}&state={query["state"]}", TestContext.Current.CancellationToken);
+            var callback = await CallbackAsync($"c-{marcador}", query["state"].ToString(), login);
             respostas.Add(await TextoDaRespostaAsync(callback));
             var cookie = callback.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("esteira_session=")).Split(';')[0];
 
@@ -76,7 +84,7 @@ namespace Esteira.Integration.Tests.Sessao
             var q2 = QueryHelpers.ParseQuery(novoLogin.Headers.Location!.Query);
             var tokensDoSegundoLogin = tokensDoLogin with { IdToken = ProvedorOidcFalso.Jwt(new { sub, nonce = q2["nonce"].ToString() }), RefreshToken = $"RT-login2-{marcador}" };
             _provedor.ResponderTroca = _ => Result<TokensOidc>.Sucesso(tokensDoSegundoLogin);
-            var cb2 = await _cliente.GetAsync($"/api/v1/auth/callback?code=c2&state={q2["state"]}", TestContext.Current.CancellationToken);
+            var cb2 = await CallbackAsync("c2", q2["state"].ToString(), novoLogin);
             cookie = cb2.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("esteira_session=")).Split(';')[0];
             var logout = await ComSessaoAsync(HttpMethod.Get, "/api/v1/auth/logout");
             logout.Headers.Location!.Query.Should().Contain("id_token_hint");

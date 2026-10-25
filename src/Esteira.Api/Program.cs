@@ -79,7 +79,8 @@ builder.Services.Configure<AutenticacaoSettings>(builder.Configuration.GetSectio
 Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientId");
 Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientSecret");
 Configuracao.Obrigatoria(builder.Configuration, "Autenticacao:UrlPublica");
-builder.Services.AddHttpClient<IProvedorOidc, ProvedorOidcKeycloak>();
+// Timeout bem abaixo do TTL da trava de refresh (10 s): a troca nunca sobrevive à própria trava.
+builder.Services.AddHttpClient<IProvedorOidc, ProvedorOidcKeycloak>(cliente => cliente.Timeout = TimeSpan.FromSeconds(5));
 builder.Services.AddScoped<FluxoLogin>();
 builder.Services.AddScoped<FluxoSessao>();
 // Sessão BFF (ADR-0004): cookie opaco -> sessão no Redis. Sem JWT Bearer.

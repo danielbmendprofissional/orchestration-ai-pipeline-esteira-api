@@ -13,6 +13,13 @@ namespace Esteira.Application.Tests.Sessao
         public void Caminho_relativo_da_mesma_origem_passa_como_veio(string valor)
             => ReturnUrlSeguro.Normalizar(valor).Should().Be(valor);
 
+        [Fact]
+        public void Caminho_acima_do_limite_vira_a_raiz()
+        {
+            ReturnUrlSeguro.Normalizar("/" + new string((char)97, 511)).Should().HaveLength(512);
+            ReturnUrlSeguro.Normalizar("/" + new string((char)97, 512)).Should().Be("/");
+        }
+
         [Theory]
         [InlineData(null)]
         [InlineData("")]

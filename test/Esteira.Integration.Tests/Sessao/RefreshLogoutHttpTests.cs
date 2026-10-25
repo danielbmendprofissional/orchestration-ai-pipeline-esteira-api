@@ -15,12 +15,14 @@ namespace Esteira.Integration.Tests.Sessao
     // Critérios 9–13 da B3: refresh com trava e reuse detection, e logout, contra o Redis real e o Keycloak falso.
     public sealed class RefreshLogoutHttpTests : IClassFixture<ApiDeTeste>, IAsyncLifetime
     {
+        private readonly ApiDeTeste _api;
         private readonly ISessaoStore _sessoes;
         private readonly ProvedorOidcFalso _provedor;
         private readonly HttpClient _cliente;
 
         public RefreshLogoutHttpTests(ApiDeTeste api)
         {
+            _api = api;
             _sessoes = api.Services.GetRequiredService<ISessaoStore>();
             _provedor = api.Services.GetRequiredService<ProvedorOidcFalso>();
             _cliente = api.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = false });
@@ -172,6 +174,60 @@ namespace Esteira.Integration.Tests.Sessao
             parametros["post_logout_redirect_uri"].ToString().Should().Be("http://localhost:4200/");
             DeveExpirarOCookie(resposta);
             (await _sessoes.ObterAsync(id)).Should().BeNull();
+        }
+
+        [Fact]
+        public void Chamada_ao_Keycloak_tem_timeout_abaixo_do_TTL_da_trava_de_refresh()
+        {
+            var fabrica = _api.Services.GetRequiredService<IHttpClientFactory>();
+
+            var cliente = fabrica.CreateClient(nameof(IProvedorOidc));
+
+            cliente.Timeout.Should().BeLessThan(TimeSpan.FromSeconds(10));
+        }
+
+        [Fact]
+        public async Task Logout_durante_o_refresh_nao_ressuscita_a_sessao()
+        {
+            var (id, _) = await CriarSessaoAsync(sub: "user-corrida");
+            ProgramarRenovacaoBemSucedida();
+            _provedor.AtrasoNaRenovacao = TimeSpan.FromMilliseconds(600);
+
+            var refresh = EnviarAsync(HttpMethod.Post, "/api/v1/auth/refresh", id);
+            await Task.Delay(200, TestContext.Current.CancellationToken);
+            await EnviarAsync(HttpMethod.Get, "/api/v1/auth/logout", id);
+            var resposta = await refresh;
+
+            resposta.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            (await CodeDoErroAsync(resposta)).Should().Be("auth.nao-autenticado");
+            (await _sessoes.ObterAsync(id)).Should().BeNull("a sessão encerrada não pode voltar com os tokens novos");
+        }
+
+        [Fact]
+        public async Task Logout_nao_deixa_o_redirect_com_id_token_hint_em_cache_nem_vazar_por_referer()
+        {
+            var (id, _) = await CriarSessaoAsync(sub: "user-cache");
+
+            var resposta = await EnviarAsync(HttpMethod.Get, "/api/v1/auth/logout", id);
+
+            resposta.Headers.CacheControl!.NoStore.Should().BeTrue();
+            resposta.Headers.GetValues("Referrer-Policy").Should().ContainSingle().Which.Should().Be("no-referrer");
+        }
+
+        [Theory]
+        [InlineData("a:b")]
+        [InlineData("curto")]
+        public async Task Cookie_malformado_e_tratado_como_sem_sessao_em_refresh_e_logout(string cookie)
+        {
+            var antes = _provedor.Renovacoes.Count;
+
+            var refresh = await EnviarAsync(HttpMethod.Post, "/api/v1/auth/refresh", cookie);
+            var logout = await EnviarAsync(HttpMethod.Get, "/api/v1/auth/logout", cookie);
+
+            refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            (await CodeDoErroAsync(refresh)).Should().Be("auth.nao-autenticado");
+            logout.Headers.Location!.OriginalString.Should().Be("/");
+            _provedor.Renovacoes.Count.Should().Be(antes);
         }
 
         [Fact]

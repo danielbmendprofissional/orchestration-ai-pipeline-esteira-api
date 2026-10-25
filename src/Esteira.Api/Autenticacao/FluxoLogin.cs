@@ -7,6 +7,8 @@ using Microsoft.Extensions.Options;
 
 namespace Esteira.Api.Autenticacao
 {
+    public sealed record LoginIniciado(Uri Url, string State);
+
     public sealed record LoginConcluido(string SessaoId, string ReturnUrl);
 
     // Authorization Code + PKCE (S256) contra o Keycloak, ADR-0004. Nenhum token sai daqui para o navegador:
@@ -21,9 +23,16 @@ namespace Esteira.Api.Autenticacao
         private static readonly TimeSpan DuracaoDoLogin = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan DuracaoPadraoDaSessao = TimeSpan.FromMinutes(30);
 
+        // Erros padronizados do OAuth2 (RFC 6749 §4.1.2.1). O `error` da query vem do navegador: só estes vão pro log.
+        private static readonly HashSet<string> ErrosConhecidos = new(StringComparer.Ordinal)
+        {
+            "access_denied", "invalid_request", "invalid_scope", "login_required", "interaction_required",
+            "server_error", "temporarily_unavailable", "unauthorized_client", "unsupported_response_type"
+        };
+
         public string RedirectUri => $"{settings.Value.UrlPublica.TrimEnd('/')}/api/v1/auth/callback";
 
-        public async Task<Uri> IniciarAsync(string? returnUrl)
+        public async Task<LoginIniciado> IniciarAsync(string? returnUrl)
         {
             var state = Aleatorio();
             var nonce = Aleatorio();
@@ -45,20 +54,22 @@ namespace Esteira.Api.Autenticacao
                 ["code_challenge_method"] = "S256"
             });
 
-            return new Uri(url);
+            return new LoginIniciado(new Uri(url), state);
         }
 
+        // `stateDoNavegador` é o cookie de login que /auth/login pôs neste navegador: sem ele um atacante
+        // entregaria à vítima o callback da própria conta dele (login CSRF).
         // null = login recusado: o motivo vai pro log, nunca pra URL nem pra resposta.
-        public async Task<LoginConcluido?> ConcluirAsync(string? code, string? state, string? erro)
+        public async Task<LoginConcluido?> ConcluirAsync(string? code, string? state, string? erro, string? stateDoNavegador)
         {
-            if (string.IsNullOrEmpty(state))
+            if (!IdentificadorSeguro.Valido(state))
             {
-                log.LogWarning("Callback de login sem state");
+                log.LogWarning("Callback de login sem state válido");
                 return null;
             }
 
-            // Consome o contexto primeiro: o state vale uma vez só, mesmo quando o Keycloak devolveu erro.
-            var contexto = await sessoes.ConsumirLoginAsync(state);
+            // Consome o contexto primeiro: o state vale uma vez só, mesmo quando o login vai ser recusado.
+            var contexto = await sessoes.ConsumirLoginAsync(state!);
 
             if (contexto is null)
             {
@@ -66,9 +77,15 @@ namespace Esteira.Api.Autenticacao
                 return null;
             }
 
+            if (!MesmoState(state!, stateDoNavegador))
+            {
+                log.LogWarning("Callback de login sem o cookie de login deste navegador");
+                return null;
+            }
+
             if (!string.IsNullOrEmpty(erro))
             {
-                log.LogWarning("Keycloak devolveu erro no login: {Erro}", erro);
+                log.LogWarning("Keycloak devolveu erro no login: {Erro}", ErrosConhecidos.Contains(erro) ? erro : "desconhecido");
                 return null;
             }
 
@@ -115,6 +132,10 @@ namespace Esteira.Api.Autenticacao
 
             return new LoginConcluido(sessao.Id, contexto.ReturnUrl);
         }
+
+        private static bool MesmoState(string state, string? doNavegador)
+            => doNavegador is not null
+               && CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(state), Encoding.ASCII.GetBytes(doNavegador));
 
         private static string Aleatorio() => WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
     }
