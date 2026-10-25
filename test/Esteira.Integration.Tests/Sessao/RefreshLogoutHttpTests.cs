@@ -136,7 +136,7 @@ namespace Esteira.Integration.Tests.Sessao
 
             var resposta = await EnviarAsync(HttpMethod.Post, "/api/v1/auth/refresh", id);
 
-            resposta.StatusCode.Should().NotBe(HttpStatusCode.NoContent).And.NotBe(HttpStatusCode.Unauthorized);
+            resposta.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity, "TipoErro.Failure da ADR-0003");
             (await CodeDoErroAsync(resposta)).Should().Be("auth.provedor-indisponivel");
             CookiesDeSessao(resposta).Should().BeEmpty();
             (await _sessoes.ObterAsync(id))!.RefreshToken.Should().Be(tokens.RefreshToken);

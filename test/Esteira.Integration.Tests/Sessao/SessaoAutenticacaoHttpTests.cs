@@ -96,6 +96,7 @@ namespace Esteira.Integration.Tests.Sessao
         [Theory]
         [InlineData("/api/v1/auth/login")]
         [InlineData("/api/v1/auth/callback")]
+        [InlineData("/api/v1/auth/logout")]
         [InlineData("/health")]
         [InlineData("/metrics")]
         public async Task Endpoints_anonimos_respondem_sem_sessao(string rota)
