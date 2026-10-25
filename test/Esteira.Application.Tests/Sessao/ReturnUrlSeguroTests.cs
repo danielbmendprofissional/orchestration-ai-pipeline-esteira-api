@@ -25,7 +25,7 @@ namespace Esteira.Application.Tests.Sessao
         [InlineData("entregas")]
         [InlineData("/entregas\r\nSet-Cookie: x=1")]
         [InlineData("/\tevil.example")]
-        public void Qualquer_outro_valor_vira_a_raiz(string? valor)
+        public void Qualquer_outro_valor_vira_a_raiz(string valor)
             => ReturnUrlSeguro.Normalizar(valor).Should().Be("/");
     }
 }
