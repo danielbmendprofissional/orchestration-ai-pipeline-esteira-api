@@ -77,6 +77,18 @@ namespace Esteira.Integration.Tests.Paginacao
             resultado.Value.Pagina.Should().Be(9);
         }
 
+        [Fact, DisplayName("Deve devolver itens vazios com o total real quando a página é tão grande que o cálculo do recorte estouraria")]
+        public async Task PaginaGigante_DeveDevolverVazioSemEstourar()
+        {
+            var (contexto, _) = await NovoContextoAsync();
+
+            var resultado = await Paginar(contexto, new PaginacaoDto { Pagina = int.MaxValue, TamanhoPagina = 100 });
+
+            resultado.IsSuccess.Should().BeTrue();
+            resultado.Value.Itens.Should().BeEmpty();
+            resultado.Value.Total.Should().Be(25);
+        }
+
         [Fact, DisplayName("Deve devolver os mesmos itens na mesma ordem ao pedir a mesma página duas vezes com valores repetidos")]
         public async Task MesmaPaginaDuasVezes_DeveSerEstavel()
         {

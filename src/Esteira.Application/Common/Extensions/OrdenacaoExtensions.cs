@@ -10,20 +10,17 @@ namespace Esteira.Application.Common.Extensions
         public static bool TemCampo<T>(string? campo) => Propriedade(typeof(T), campo) is not null;
 
         public static IOrderedQueryable<T>? OrdenarPor<T>(this IQueryable<T> query, string? campo, string? sentido)
-            => Aplicar(query, campo, Descendente(sentido), desempate: null);
-
-        public static IOrderedQueryable<T>? DesempatarPor<T>(this IOrderedQueryable<T> query, string? campo, string? sentido)
-            => Aplicar(query, campo, Descendente(sentido), desempate: query);
+            => Aplicar(query, campo, Descendente(sentido));
 
         private static bool Descendente(string? sentido)
             => string.Equals(sentido, "desc", StringComparison.OrdinalIgnoreCase);
 
-        private static PropertyInfo? Propriedade(Type tipo, string campo)
+        private static PropertyInfo? Propriedade(Type tipo, string? campo)
             => string.IsNullOrWhiteSpace(campo)
                 ? null
                 : tipo.GetProperty(campo, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 
-        private static IOrderedQueryable<T>? Aplicar<T>(IQueryable<T> query, string? campo, bool descendente, IOrderedQueryable<T>? desempate)
+        private static IOrderedQueryable<T>? Aplicar<T>(IQueryable<T> query, string? campo, bool descendente)
         {
             var propriedade = Propriedade(typeof(T), campo);
             if (propriedade is null)
@@ -32,13 +29,7 @@ namespace Esteira.Application.Common.Extensions
             var parametro = Expression.Parameter(typeof(T), "x");
             var seletor = Expression.Lambda(Expression.Property(parametro, propriedade), parametro);
 
-            var metodo = (desempate is not null, descendente) switch
-            {
-                (false, false) => nameof(Queryable.OrderBy),
-                (false, true) => nameof(Queryable.OrderByDescending),
-                (true, false) => nameof(Queryable.ThenBy),
-                (true, true) => nameof(Queryable.ThenByDescending)
-            };
+            var metodo = descendente ? nameof(Queryable.OrderByDescending) : nameof(Queryable.OrderBy);
 
             var chamada = Expression.Call(
                 typeof(Queryable),

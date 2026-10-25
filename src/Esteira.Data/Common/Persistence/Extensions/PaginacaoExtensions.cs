@@ -28,13 +28,24 @@ namespace Esteira.Data.Common.Persistence.Extensions
 
             var total = await query.CountAsync(cancellationToken);
 
+            // long: página e tamanho vêm do cliente, e (Pagina - 1) * Tamanho estoura int. Passou do total, nem consulta.
+            var pular = (long)(paginacao.Pagina - 1) * paginacao.TamanhoPagina;
+            if (pular >= total)
+                return Result<PaginaDto<TDto>>.Sucesso(new PaginaDto<TDto>
+                {
+                    Itens = [],
+                    Pagina = paginacao.Pagina,
+                    TamanhoPagina = paginacao.TamanhoPagina,
+                    Total = total
+                });
+
             var projetada = query.Select(projecao);
             var ordenada = ordenacaoPadrao.Aplicar(
                 projetada,
                 temSort ? projetada.OrdenarPor(paginacao.Ordenacao, paginacao.Sentido) : null);
 
             var itens = await ordenada
-                .Skip((paginacao.Pagina - 1) * paginacao.TamanhoPagina)
+                .Skip((int)pular)
                 .Take(paginacao.TamanhoPagina)
                 .ToListAsync(cancellationToken);
 
