@@ -1,4 +1,5 @@
 using Esteira.Integration.Tests.Infraestrutura;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -34,6 +35,9 @@ namespace Esteira.Integration.Tests.Http
                     .AddNewtonsoftJson();
 
                 services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(PedidoComValor).Assembly));
+
+                // Validators de teste moram neste assembly; sem isso o pipeline de validação não os enxerga.
+                services.AddValidatorsFromAssembly(typeof(PedidoValidado).Assembly);
             });
         }
     }

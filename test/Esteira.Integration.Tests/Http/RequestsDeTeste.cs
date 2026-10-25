@@ -1,4 +1,5 @@
 using Esteira.Domain.Common.Resultados;
+using FluentValidation;
 using MediatR;
 
 namespace Esteira.Integration.Tests.Http
@@ -37,6 +38,69 @@ namespace Esteira.Integration.Tests.Http
             => Task.FromResult(Result<string>.Falha(
                 new Erro("url.invalida", "A url informada é inválida.", TipoErro.Validation),
                 new Erro("projeto.nao.encontrado", "Projeto não encontrado.", TipoErro.NotFound)));
+    }
+
+    // Critérios 4 e 5: requests com validator de verdade, para exercitar o pipeline de validação.
+    public sealed record PedidoValidado(string Url) : IRequest<Result<string>>;
+
+    public sealed record PedidoSemErrorCode(string Nome) : IRequest<Result<string>>;
+
+    // Critério 6: o corpo passa pelo model binding; o handler só roda se o JSON for legível e tipado.
+    public sealed record PedidoComCorpo(int Quantidade) : IRequest<Result<string>>;
+
+    public sealed class PedidoValidadoValidator : AbstractValidator<PedidoValidado>
+    {
+        public PedidoValidadoValidator()
+        {
+            RuleFor(p => p.Url)
+                .NotEmpty().WithMessage("A url é obrigatória.").WithErrorCode("url.obrigatoria");
+
+            RuleFor(p => p.Url)
+                .Must(url => Uri.TryCreate(url, UriKind.Absolute, out _))
+                .WithMessage("A url informada é inválida.").WithErrorCode("url.invalida");
+        }
+    }
+
+    public sealed class PedidoSemErrorCodeValidator : AbstractValidator<PedidoSemErrorCode>
+    {
+        public PedidoSemErrorCodeValidator()
+        {
+            RuleFor(p => p.Nome).NotEmpty().WithMessage("O nome é obrigatório.");
+        }
+    }
+
+    public sealed class PedidoValidadoHandler : IRequestHandler<PedidoValidado, Result<string>>
+    {
+        // Zerado pelo teste: prova que a validação barrou o request antes do handler.
+        public static int Execucoes { get; set; }
+
+        public Task<Result<string>> Handle(PedidoValidado request, CancellationToken cancellationToken)
+        {
+            Execucoes++;
+            return Task.FromResult(Result<string>.Sucesso("validado"));
+        }
+    }
+
+    public sealed class PedidoSemErrorCodeHandler : IRequestHandler<PedidoSemErrorCode, Result<string>>
+    {
+        public static int Execucoes { get; set; }
+
+        public Task<Result<string>> Handle(PedidoSemErrorCode request, CancellationToken cancellationToken)
+        {
+            Execucoes++;
+            return Task.FromResult(Result<string>.Sucesso("validado"));
+        }
+    }
+
+    public sealed class PedidoComCorpoHandler : IRequestHandler<PedidoComCorpo, Result<string>>
+    {
+        public static int Execucoes { get; set; }
+
+        public Task<Result<string>> Handle(PedidoComCorpo request, CancellationToken cancellationToken)
+        {
+            Execucoes++;
+            return Task.FromResult(Result<string>.Sucesso($"quantidade:{request.Quantidade}"));
+        }
     }
 
     internal static class ErrosDeTeste

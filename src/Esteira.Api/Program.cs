@@ -45,6 +45,11 @@ builder.Services
         options.Filters.Add<PaginacaoResultFilter>();
         options.Filters.Add<ResultadoFilter>();
     })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Corpo ilegível ou com tipo errado sai no mesmo formato de erro da ADR-0003.
+        options.InvalidModelStateResponseFactory = RequisicaoInvalida.Resposta;
+    })
     .AddNewtonsoftJson(opt =>
     {
         opt.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;

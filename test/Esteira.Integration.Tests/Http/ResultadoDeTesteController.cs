@@ -25,5 +25,17 @@ namespace Esteira.Integration.Tests.Http
         [HttpGet("duas-falhas")]
         public async Task<Result<string>> ComDuasFalhas(CancellationToken cancellationToken)
             => await mediator.Send(new PedidoComDuasFalhas(), cancellationToken);
+
+        [HttpPost("validado")]
+        public async Task<Result<string>> Validado([FromBody] PedidoValidado pedido, CancellationToken cancellationToken)
+            => await mediator.Send(pedido, cancellationToken);
+
+        [HttpPost("sem-error-code")]
+        public async Task<Result<string>> SemErrorCode([FromBody] PedidoSemErrorCode pedido, CancellationToken cancellationToken)
+            => await mediator.Send(pedido, cancellationToken);
+
+        [HttpPost("corpo")]
+        public async Task<Result<string>> ComCorpo([FromBody] PedidoComCorpo pedido, CancellationToken cancellationToken)
+            => await mediator.Send(pedido, cancellationToken);
     }
 }
