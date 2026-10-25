@@ -61,7 +61,8 @@ A fatia M0 (2026-10-22) removeu todo o modelo herdado do sistema legado e deixou
 
 ### Segurança e acesso
 - [ ] **Audit trail.** A Esteira orquestra o GitLab com um token de bot (ADR-0008): no GitLab todo merge/tag aparece como o bot, então quem clicou, quando e por quê só existe aqui. Integrar a aplicação de audit trail que o Daniel já tem (a ser trazida pro workspace). Cobre também metadados (DataCriação, DataAtualização, usuário) e o módulo de atividade.
-- [ ] **`[Authorize]` nos endpoints** quando a sessão BFF (ADR-0004) entrar; endpoints da pipeline autenticados por `id_token`, não por sessão.
+- [x] **`[Authorize]` nos endpoints** — feito na B3: sessão BFF (ADR-0004) exigida por padrão (`FallbackPolicy`). Falta (E1): endpoints da pipeline (`/api/pipeline/v1`) autenticados por `id_token` do GitLab, com esquema próprio e `[AllowAnonymous]` para a sessão.
+- [ ] **Status de erro do provedor fora do ar.** `auth.provedor-indisponivel` (Keycloak indisponível no refresh) sai como `Failure` → 422 porque o mapa de status da ADR-0003 não tem 502/503. Avaliar um tipo de erro próprio quando o front tratar retry.
 - [ ] **Endpoint de permissões para o front.** `GET /api/fluxo-deploy/{id}/permissoes` devolvendo o que o usuário pode fazer, calculado pelas mesmas regras do backend (papéis da Aplicação + MOR).
 
 ### Mensageria e eventos
@@ -95,4 +96,6 @@ dotnet ef database update --project src/Esteira.Data --startup-project src/Estei
 dotnet run --project src/Esteira.Api --launch-profile http   # http://localhost:5105 — /health, /metrics, /scalar/v1
 ```
 
-Configuração: só as chaves do contrato (`../docs/agents/infra-local.md`: `ConnectionStrings:Postgres`/`PostgresMigrations`, `RabbitMQ:*`, `Keycloak:*`, `OTEL_*`), vindas do user-secrets em dev. No `appsettings.json` fica só o que é do projeto: `Serilog`, `Autenticacao` (claims, HTTPS), `RabbitMQ:Ambiente`, `Cors`. Sem chave obrigatória, a API não sobe e diz qual falta.
+**Login em dev (sessão BFF).** Precisa do Redis e do Keycloak da infra no ar e do `Keycloak:ClientSecret` no user-secrets. O `redirect_uri` é `http://localhost:4200/api/v1/auth/callback` (`Autenticacao:UrlPublica`), então a API é acessada pela origem do front: `ng serve` em `esteira-frontend` (o `proxy.conf.json` manda `/api` para `localhost:5105`). Abra `http://localhost:4200/api/v1/auth/login`, entre com o usuário `dev` (senha em `PROJECT_ESTEIRA_KEYCLOAK_DEV_PASSWORD`, no env da infra) e confira `http://localhost:4200/api/v1/usuarios/me` (`perfis` com `mor`). Logout: `/api/v1/auth/logout`.
+
+Configuração: só as chaves do contrato (`../docs/agents/infra-local.md`: `ConnectionStrings:Postgres`/`PostgresMigrations`, `RabbitMQ:*`, `Keycloak:*`, `OTEL_*`), vindas do user-secrets em dev. No `appsettings.json` fica só o que é do projeto: `Serilog`, `Autenticacao` (claims, HTTPS, `UrlPublica`), `RabbitMQ:Ambiente`, `Cors`. Sem chave obrigatória, a API não sobe e diz qual falta.

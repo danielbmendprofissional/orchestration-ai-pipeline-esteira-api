@@ -27,6 +27,7 @@ Dependência aponta para dentro: `Domain` ← `Application` ← `Data` · `AcL` 
 - **Sistema externo** só atrás de porta em `Application/Interfaces/Integracoes`, adaptador no `AcL`. Escrita no GitLab só como **Ação do bot** gravada na transação (outbox) e executada por consumer — ADR-0010.
 - **Mensageria:** registro único em `Esteira.IoC/Mensageria.cs` (`AddMensageria`), usado pela API e pelos testes de integração. Publicar dentro de um command pelo `IPublishEndpoint` do escopo: a mensagem vai para a tabela de outbox no mesmo commit. Consumer novo entra pelo parâmetro de consumidores.
 - **Duas superfícies:** front em `/api/v1/...` (sessão, ADR-0004); pipeline em `/api/pipeline/v1/...` (`id_token`, contrato versionado, ADR-0013). Relatório grande da pipeline: o endpoint valida, publica na fila e responde 202; o consumer processa.
+- **Sessão BFF** (ADR-0004): o navegador só tem o cookie opaco `esteira_session`; tokens do Keycloak no Redis (`ISessaoStore`, adaptador em `Infra.Cache`, só comandos simples e chaves com `Redis:KeyPrefix` — a ACL nega `SCAN`/`KEYS`). Fluxo OIDC próprio em `Esteira.Api/Autenticacao` (`FluxoLogin`, `FluxoSessao`, `IProvedorOidc`), esquema `Sessao` alimenta `IUsuarioAtual` (`Id`, `Usuario`, `Nome`, `Email`, `Perfis`, `EhMor`). **Sessão é exigida por padrão** (`FallbackPolicy`): endpoint público declara `[AllowAnonymous]`, rota mapeada (`MapHealthChecks`...) declara `.AllowAnonymous()`. Access token vencido → 401 `auth.access-token-expired` (sem refresh síncrono; o front chama `POST /auth/refresh`). Nunca logar nem devolver token.
 - **Permissão** sai dos papéis da Aplicação + role `mor` (`CONTEXT-MAP.md`, Papéis), calculada no backend; o front só pergunta (`/permissoes`).
 - **Configuração:** só as chaves do contrato em `../docs/agents/infra-local.md`, segredo em user-secrets. Chave nova = pedido em `../docs/mudancas-infra.md`.
 
@@ -36,7 +37,7 @@ Só gratuitos/MIT: MediatR fica na 12.5.0, MassTransit na 8.x, asserções com A
 
 ## Testes
 
-xUnit v3 + AwesomeAssertions + NSubstitute. Um teste por critério EARS da spec. Regra de negócio: `Esteira.Domain.Tests`. Handler/orquestração: `Esteira.Application.Tests` com portas substituídas. Banco, índice único, concorrência e mensageria: `Esteira.Integration.Tests` (Testcontainers com PostgreSQL e RabbitMQ reais, schema pelas migrations; precisa do Docker rodando).
+xUnit v3 + AwesomeAssertions + NSubstitute. Um teste por critério EARS da spec. Regra de negócio: `Esteira.Domain.Tests`. Handler/orquestração: `Esteira.Application.Tests` com portas substituídas. Banco, índice único, concorrência e mensageria: `Esteira.Integration.Tests` (Testcontainers com PostgreSQL, RabbitMQ e Redis reais — o Redis com a ACL da infra —, schema pelas migrations; precisa do Docker rodando). Teste HTTP de sessão usa o `ProvedorOidcFalso` no lugar do Keycloak; rota de teste que não deve exigir sessão leva `[AllowAnonymous]`..
 
 ```bash
 dotnet build Esteira.slnx
