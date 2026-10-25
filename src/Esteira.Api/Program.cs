@@ -43,7 +43,6 @@ builder.Host.UseSerilog((context, services, configuration) =>
 builder.Services
     .AddControllers(options =>
     {
-        options.Filters.Add<PaginacaoResultFilter>();
         options.Filters.Add<ResultadoFilter>();
     })
     .ConfigureApiBehaviorOptions(options =>
@@ -105,7 +104,7 @@ builder.Services.AddCors(options =>
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()
-        .WithExposedHeaders(PaginacaoHttpExtensions.Header));
+        .WithExposedHeaders(HeadersPaginacao.Resposta));
 });
 
 var app = builder.Build();

@@ -1,27 +1,53 @@
+using System.Globalization;
 using Esteira.Application.Common.Paginacao;
-using Newtonsoft.Json;
+using Esteira.Domain.Common.Resultados;
 
 namespace Esteira.Api.Paginacao
 {
     public static class PaginacaoHttpExtensions
     {
-        public const string Header = "Pagination";
-
-        public static PaginacaoDto ObterPaginacao(this HttpContext context)
+        // ADR-0002: X-Page/X-Page-Size nos headers, sort/order na query string. Valor inválido nunca é
+        // corrigido em silêncio: volta 400 com todos os erros de uma vez.
+        public static Result<PaginacaoDto> ObterPaginacao(this HttpRequest request)
         {
-            var valor = context.Request.Headers[Header].ToString();
+            var erros = new List<Erro>();
 
-            if (string.IsNullOrWhiteSpace(valor))
-                return new PaginacaoDto();
+            var pagina = LerInteiro(request.Headers[HeadersPaginacao.Pagina].ToString(), padrao: 1, minimo: 1, maximo: int.MaxValue);
+            if (pagina is null)
+                erros.Add(PaginacaoErros.PaginaInvalida());
 
-            try
+            var tamanho = LerInteiro(request.Headers[HeadersPaginacao.TamanhoPagina].ToString(),
+                padrao: PaginacaoDto.TamanhoPadrao, minimo: 1, maximo: PaginacaoDto.TamanhoMaximo);
+            if (tamanho is null)
+                erros.Add(PaginacaoErros.TamanhoInvalido());
+
+            var sentido = request.Query["order"].ToString();
+            if (string.IsNullOrEmpty(sentido))
+                sentido = "asc";
+            else if (!sentido.Equals("asc", StringComparison.OrdinalIgnoreCase) && !sentido.Equals("desc", StringComparison.OrdinalIgnoreCase))
+                erros.Add(PaginacaoErros.SentidoInvalido());
+
+            if (erros.Count > 0)
+                return Result<PaginacaoDto>.Falha(erros.ToArray());
+
+            var ordenacao = request.Query["sort"].ToString();
+            return Result<PaginacaoDto>.Sucesso(new PaginacaoDto
             {
-                return JsonConvert.DeserializeObject<PaginacaoDto>(valor) ?? new PaginacaoDto();
-            }
-            catch (JsonException)
-            {
-                return new PaginacaoDto();
-            }
+                Pagina = pagina!.Value,
+                TamanhoPagina = tamanho!.Value,
+                Ordenacao = string.IsNullOrWhiteSpace(ordenacao) ? null : ordenacao,
+                Sentido = sentido.ToLowerInvariant()
+            });
+        }
+
+        private static int? LerInteiro(string valor, int padrao, int minimo, int maximo)
+        {
+            if (string.IsNullOrEmpty(valor))
+                return padrao;
+
+            return int.TryParse(valor, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numero) && numero >= minimo && numero <= maximo
+                ? numero
+                : null;
         }
     }
 }
