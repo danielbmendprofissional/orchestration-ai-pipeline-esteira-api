@@ -85,6 +85,10 @@ builder.Services
         options.RequireHttpsMetadata = autenticacao.RequerHttps;
         options.MapInboundClaims = false;
     });
+Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientSecret");
+Configuracao.Obrigatoria(builder.Configuration, "Autenticacao:UrlPublica");
+builder.Services.AddHttpClient<IProvedorOidc, ProvedorOidcKeycloak>();
+builder.Services.AddScoped<FluxoLogin>();
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
