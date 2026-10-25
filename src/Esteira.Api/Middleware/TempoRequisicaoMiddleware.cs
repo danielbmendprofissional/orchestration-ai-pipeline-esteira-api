@@ -34,7 +34,8 @@ namespace Esteira.Api.Middleware
                 _logger.LogInformation(
                     "{Metodo} {Rota} {Status} {Duracao}ms",
                     context.Request.Method,
-                    context.Request.Path + context.Request.QueryString,
+                    // Só o caminho: a query do callback de login carrega `code` e `state` (ADR-0004) e não pode ir pro log.
+                    context.Request.Path.Value,
                     context.Response.StatusCode,
                     cronometro.ElapsedMilliseconds);
             }

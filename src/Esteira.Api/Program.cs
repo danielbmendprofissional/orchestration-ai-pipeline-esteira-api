@@ -6,7 +6,9 @@ using Esteira.Application.Interfaces.Usuario;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
 using Esteira.IoC.Configuracoes;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
 using Prometheus;
@@ -75,20 +77,24 @@ builder.Services.AddOpenApi();
 
 var keycloakAuthority = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:Authority");
 builder.Services.Configure<AutenticacaoSettings>(builder.Configuration.GetSection(AutenticacaoSettings.Secao));
-var autenticacao = builder.Configuration.GetSection(AutenticacaoSettings.Secao).Get<AutenticacaoSettings>() ?? new AutenticacaoSettings();
+Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientId");
+Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientSecret");
+Configuracao.Obrigatoria(builder.Configuration, "Autenticacao:UrlPublica");
+// Timeout bem abaixo do TTL da trava de refresh (10 s): a troca nunca sobrevive à própria trava.
+builder.Services.AddHttpClient<IProvedorOidc, ProvedorOidcKeycloak>(cliente => cliente.Timeout = TimeSpan.FromSeconds(5));
+builder.Services.AddScoped<FluxoLogin>();
+builder.Services.AddScoped<FluxoSessao>();
+// Sessão BFF (ADR-0004): cookie opaco -> sessão no Redis. Sem JWT Bearer.
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = keycloakAuthority;
-        options.Audience = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientId");
-        options.RequireHttpsMetadata = autenticacao.RequerHttps;
-        options.MapInboundClaims = false;
-    });
-builder.Services.AddAuthorization();
+    .AddAuthentication(SessaoAuthenticationHandler.Esquema)
+    .AddScheme<AuthenticationSchemeOptions, SessaoAuthenticationHandler>(SessaoAuthenticationHandler.Esquema, null);
+// Sessão exigida por padrão em todo endpoint; quem não quer declara [AllowAnonymous].
+builder.Services.AddAuthorization(options =>
+    options.FallbackPolicy = new AuthorizationPolicyBuilder(SessaoAuthenticationHandler.Esquema).RequireAuthenticatedUser().Build());
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
+builder.Services.AddSessaoRedis(builder.Configuration);
 builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddDependencyInjection();
 
@@ -96,6 +102,15 @@ builder.Services.AddDependencyInjection();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<EsteiraContext>("postgres")
     .AddUrlGroup(new Uri($"{keycloakAuthority.TrimEnd('/')}/.well-known/openid-configuration"), "keycloak");
+
+// O Ingress é o único que alcança o Service da API no cluster, então os X-Forwarded-* dele são confiáveis; por padrão o
+// ASP.NET só aceitaria proxy em loopback e ignoraria o cabeçalho. Só esquema e IP: o host público vem de Autenticacao:UrlPublica.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddCors(options =>
 {
@@ -109,6 +124,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Atrás do Ingress o TLS termina no proxy: sem isto o pod enxerga sempre http e o IP do Ingress. Tem de ser o primeiro
+// da pipeline (antes do log e do redirect para HTTPS).
+if (!app.Environment.IsDevelopment())
+    app.UseForwardedHeaders();
+
 app.UseMiddleware<TempoRequisicaoMiddleware>();
 app.UseSerilogRequestLogging();
 app.UseHttpMetrics();
@@ -116,11 +136,14 @@ app.UseHttpMetrics();
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("Frontend");
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
-app.UseHttpsRedirection();
+// Em Development a API fica atrás do proxy do ng serve (mesma origem do BFF, ADR-0004): redirecionar para HTTPS
+// jogaria o login para outra origem (perfil "https" do launchSettings, porta 7239). Fora dele vale o redirect.
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 
 app.UseExceptionHandler();
 
@@ -128,7 +151,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
-app.MapMetrics();
+app.MapHealthChecks("/health").AllowAnonymous();
+app.MapMetrics().AllowAnonymous();
 
 await app.RunAsync();

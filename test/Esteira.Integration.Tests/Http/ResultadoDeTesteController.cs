@@ -6,6 +6,7 @@ namespace Esteira.Integration.Tests.Http
 {
     // Controller só de teste: fino, como os de verdade — monta o request e devolve o Result.
     // A tradução Result → HTTP é do filtro, então aqui não há status na mão.
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
     [ApiController]
     [Route("api/teste")]
     public sealed class ResultadoDeTesteController(IMediator mediator) : ControllerBase

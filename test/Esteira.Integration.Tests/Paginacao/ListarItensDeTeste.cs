@@ -28,6 +28,7 @@ namespace Esteira.Integration.Tests.Paginacao
         }
     }
 
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
     [ApiController]
     [Route("api/teste/itens")]
     public sealed class ItensDeTesteController(IMediator mediator) : ControllerBase
