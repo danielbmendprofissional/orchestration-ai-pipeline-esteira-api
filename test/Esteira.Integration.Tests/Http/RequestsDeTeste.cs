@@ -1,5 +1,7 @@
 using Esteira.Domain.Common.Resultados;
 using FluentValidation;
+using Esteira.Application.Interfaces.Transaction;
+using MassTransit;
 using MediatR;
 
 namespace Esteira.Integration.Tests.Http
@@ -112,6 +114,18 @@ namespace Esteira.Integration.Tests.Http
 
         public Task<Result<string>> Handle(PedidoQueLanca request, CancellationToken cancellationToken)
             => throw new InvalidOperationException(Mensagem);
+    }
+
+    // Critério 7: command transacional que publica mensagem (outbox) e devolve falha.
+    public sealed record PedidoQuePublicaEFalha(Guid Marcador) : IRequest<Result>, ITransactionRequest;
+
+    public sealed class PedidoQuePublicaEFalhaHandler(IPublishEndpoint publicador) : IRequestHandler<PedidoQuePublicaEFalha, Result>
+    {
+        public async Task<Result> Handle(PedidoQuePublicaEFalha request, CancellationToken cancellationToken)
+        {
+            await publicador.Publish(new Mensageria.MensagemDeTeste(request.Marcador), cancellationToken);
+            return Result.Falha(new Erro("teste.falha", "Falhou.", TipoErro.Failure));
+        }
     }
 
     internal static class ErrosDeTeste

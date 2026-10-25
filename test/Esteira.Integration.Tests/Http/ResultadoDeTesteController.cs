@@ -30,6 +30,10 @@ namespace Esteira.Integration.Tests.Http
         public async Task<Result<string>> QueLanca(CancellationToken cancellationToken)
             => await mediator.Send(new PedidoQueLanca(), cancellationToken);
 
+        [HttpPost("publica-e-falha/{marcador:guid}")]
+        public async Task<Result> PublicaEFalha(Guid marcador, CancellationToken cancellationToken)
+            => await mediator.Send(new PedidoQuePublicaEFalha(marcador), cancellationToken);
+
         [HttpPost("validado")]
         public async Task<Result<string>> Validado([FromBody] PedidoValidado pedido, CancellationToken cancellationToken)
             => await mediator.Send(pedido, cancellationToken);
