@@ -89,6 +89,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
+builder.Services.AddSessaoRedis(builder.Configuration);
 builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddDependencyInjection();
 
