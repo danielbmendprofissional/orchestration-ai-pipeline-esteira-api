@@ -1,6 +1,7 @@
 using Esteira.Api.Autenticacao;
 using Esteira.Api.Erros;
 using Esteira.Api.Middleware;
+using Esteira.Api.Paginacao;
 using Esteira.Application.Interfaces.Usuario;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
@@ -102,7 +103,8 @@ builder.Services.AddCors(options =>
         .WithOrigins(builder.Configuration.GetSection("Cors:Origens").Get<string[]>() ?? new[] { "http://localhost:4200" })
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials());
+        .AllowCredentials()
+        .WithExposedHeaders(HeadersPaginacao.Resposta));
 });
 
 var app = builder.Build();

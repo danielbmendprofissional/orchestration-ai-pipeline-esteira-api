@@ -8,6 +8,7 @@ using Esteira.Integration.Tests.Infraestrutura;
 namespace Esteira.Integration.Tests.Paginacao
 {
     // ADR-0002, fatia B1.2: pedido inválido é recusado com 400 antes de qualquer consulta.
+    [Collection("PaginacaoHttp")] // contador estático do handler: não roda em paralelo com as outras classes que listam
     public class PaginacaoHttpTests : IClassFixture<ApiDeTeste>, IAsyncLifetime
     {
         private readonly HttpClient _cliente;
