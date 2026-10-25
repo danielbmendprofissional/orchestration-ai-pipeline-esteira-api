@@ -1,4 +1,4 @@
-﻿using Esteira.Domain.Common.Exceptions;
+﻿using Esteira.Domain.Common.Resultados;
 using Esteira.Domain.Common.ValueObjects;
 using System.ComponentModel;
 using System.Reflection;
@@ -7,10 +7,12 @@ namespace Esteira.Domain.Tests.Common.ValueObjects
 {
     public class ResumoSeveridadeValueObjectTests
     {
+        private static ResumoSeveridadeValueObject Resumo(int c, int a, int m, int b) => ResumoSeveridadeValueObject.Criar(c, a, m, b).Value;
+
         [Fact, DisplayName("Deve criar o resumo com as quantidades informadas e calcular o total")]
         public void Criar_Valido_DeveCalcularTotal()
         {
-            var resumo = new ResumoSeveridadeValueObject(1, 2, 3, 4);
+            var resumo = Resumo(1, 2, 3, 4);
 
             resumo.VulnerabilidadeCritica.Should().Be(1);
             resumo.VulnerabilidadeAlta.Should().Be(2);
@@ -19,23 +21,25 @@ namespace Esteira.Domain.Tests.Common.ValueObjects
             resumo.Total.Should().Be(10);
         }
 
-        [Theory, DisplayName("Deve lançar exceção quando alguma quantidade for negativa")]
+        [Theory, DisplayName("Deve devolver falha severidade.quantidade-negativa quando alguma quantidade for negativa")]
         [InlineData(-1, 0, 0, 0)]
         [InlineData(0, -1, 0, 0)]
         [InlineData(0, 0, -1, 0)]
         [InlineData(0, 0, 0, -1)]
-        public void Criar_Negativo_DeveLancarDomainException(int critica, int alta, int media, int baixa)
+        public void Criar_Negativo_DeveDevolverFalha(int critica, int alta, int media, int baixa)
         {
-            var act = () => new ResumoSeveridadeValueObject(critica, alta, media, baixa);
+            var resultado = ResumoSeveridadeValueObject.Criar(critica, alta, media, baixa);
 
-            act.Should().Throw<DomainException>();
+            resultado.IsSuccess.Should().BeFalse();
+            resultado.Errors.Should().ContainSingle()
+                .Which.Should().Match<Erro>(e => e.Code == "severidade.quantidade-negativa" && e.Type == TipoErro.Validation);
         }
 
         [Fact, DisplayName("Deve ser igual quando todas as quantidades forem iguais")]
         public void Equals_MesmosValores_DeveSerIgual()
         {
-            var a = new ResumoSeveridadeValueObject(1, 2, 3, 4);
-            var b = new ResumoSeveridadeValueObject(1, 2, 3, 4);
+            var a = Resumo(1, 2, 3, 4);
+            var b = Resumo(1, 2, 3, 4);
 
             a.Should().Be(b);
             (a == b).Should().BeTrue();
@@ -45,27 +49,27 @@ namespace Esteira.Domain.Tests.Common.ValueObjects
         [Fact, DisplayName("Não deve ser igual quando as quantidades estiverem trocadas")]
         public void Equals_ValoresTrocados_NaoDeveSerIgual()
         {
-            new ResumoSeveridadeValueObject(1, 2, 0, 0).Should().NotBe(new ResumoSeveridadeValueObject(2, 1, 0, 0));
+            Resumo(1, 2, 0, 0).Should().NotBe(Resumo(2, 1, 0, 0));
         }
 
         [Fact, DisplayName("Deve somar os resumos sem alterar os originais")]
         public void Somar_DeveRetornarNovaInstancia()
         {
-            var a = new ResumoSeveridadeValueObject(1, 1, 1, 1);
-            var b = new ResumoSeveridadeValueObject(2, 0, 3, 0);
+            var a = Resumo(1, 1, 1, 1);
+            var b = Resumo(2, 0, 3, 0);
 
             var soma = a.Somar(b);
 
-            soma.Should().Be(new ResumoSeveridadeValueObject(3, 1, 4, 1));
-            a.Should().Be(new ResumoSeveridadeValueObject(1, 1, 1, 1));
+            soma.Should().Be(Resumo(3, 1, 4, 1));
+            a.Should().Be(Resumo(1, 1, 1, 1));
         }
 
-        [Fact, DisplayName("Deve lançar exceção ao somar um resumo nulo")]
-        public void Somar_Nulo_DeveLancarDomainException()
+        [Fact, DisplayName("Deve lançar ArgumentNullException ao somar um resumo nulo")]
+        public void Somar_Nulo_DeveLancarArgumentNull()
         {
             var act = () => ResumoSeveridadeValueObject.Vazio.Somar(null);
 
-            act.Should().Throw<DomainException>();
+            act.Should().Throw<ArgumentNullException>();
         }
 
         [Fact, DisplayName("Deve retornar resumo vazio ao somar uma lista vazia")]
@@ -80,12 +84,12 @@ namespace Esteira.Domain.Tests.Common.ValueObjects
         {
             var resumos = new[]
             {
-                new ResumoSeveridadeValueObject(1, 0, 0, 0),
-                new ResumoSeveridadeValueObject(0, 2, 0, 0),
-                new ResumoSeveridadeValueObject(0, 0, 3, 4)
+                Resumo(1, 0, 0, 0),
+                Resumo(0, 2, 0, 0),
+                Resumo(0, 0, 3, 4)
             };
 
-            ResumoSeveridadeValueObject.SomarTodos(resumos).Should().Be(new ResumoSeveridadeValueObject(1, 2, 3, 4));
+            ResumoSeveridadeValueObject.SomarTodos(resumos).Should().Be(Resumo(1, 2, 3, 4));
         }
 
         [Fact, DisplayName("Deve mapear as severidades ignorando maiúsculas, minúsculas e nulos")]
@@ -96,15 +100,15 @@ namespace Esteira.Domain.Tests.Common.ValueObjects
                 "CRITICAL", "high", "Error", "WARNING", "medium", "INFO", "low", "UNKNOWN", null, "OUTRA"
             });
 
-            resumo.Should().Be(new ResumoSeveridadeValueObject(1, 2, 2, 3));
+            resumo.Should().Be(Resumo(1, 2, 2, 3));
         }
 
-        [Fact, DisplayName("Deve lançar exceção quando a lista de severidades for nula")]
-        public void DeSeveridades_Nula_DeveLancarDomainException()
+        [Fact, DisplayName("Deve lançar ArgumentNullException quando a lista de severidades for nula")]
+        public void DeSeveridades_Nula_DeveLancarArgumentNull()
         {
             var act = () => ResumoSeveridadeValueObject.DeSeveridades(null);
 
-            act.Should().Throw<DomainException>();
+            act.Should().Throw<ArgumentNullException>();
         }
 
         [Fact, DisplayName("Deve ser imutável (sem setters públicos)")]

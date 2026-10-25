@@ -1,4 +1,4 @@
-﻿using Esteira.Domain.Common.Exceptions;
+﻿using Esteira.Domain.Common.Resultados;
 using Esteira.Domain.Common.ValueObjects;
 using System.ComponentModel;
 using AwesomeAssertions;
@@ -12,45 +12,43 @@ namespace Esteira.Domain.Tests.Common.ValueObjects
         [InlineData("https://app.com/x?a=1", "https://app.com/x")]
         public void Criar_DeveNormalizar(string url, string esperado)
         {
-            UrlValueObject.Criar(url).Valor.Should().Be(esperado);
+            UrlValueObject.Criar(url).Value.Valor.Should().Be(esperado);
         }
 
         [Fact, DisplayName("Deve considerar maiúsculas no host e barra final como o mesmo valor")]
         public void Equals_HostEBarraFinal_DeveSerIgual()
         {
-            UrlValueObject.Criar("HTTP://App.com/").Should().Be(UrlValueObject.Criar("http://app.com"));
+            UrlValueObject.Criar("HTTP://App.com/").Value.Should().Be(UrlValueObject.Criar("http://app.com").Value);
         }
 
         [Fact, DisplayName("Não deve ser igual quando o caminho for diferente")]
         public void Equals_CaminhosDiferentes_NaoDeveSerIgual()
         {
-            UrlValueObject.Criar("https://app.com/a").Should().NotBe(UrlValueObject.Criar("https://app.com/b"));
+            UrlValueObject.Criar("https://app.com/a").Value.Should().NotBe(UrlValueObject.Criar("https://app.com/b").Value);
         }
 
-        [Fact, DisplayName("Deve manter o comportamento do Normalize estático")]
-        public void Normalize_DeveRetornarValor()
-        {
-            UrlValueObject.Normalize("https://app.com/x/").Should().Be("https://app.com/x");
-        }
-
-        [Theory, DisplayName("Deve lançar exceção quando a URL for inválida")]
+        [Theory, DisplayName("Deve devolver falha url.invalida quando a URL for inválida")]
         [InlineData(null)]
         [InlineData("")]
         [InlineData("app.com")]
         [InlineData("ftp://app.com")]
-        public void Criar_Invalida_DeveLancarDomainException(string url)
+        public void Criar_Invalida_DeveDevolverFalha(string url)
         {
-            var act = () => UrlValueObject.Criar(url);
+            var resultado = UrlValueObject.Criar(url);
 
-            act.Should().Throw<DomainException>();
+            resultado.IsSuccess.Should().BeFalse();
+            resultado.Errors.Should().ContainSingle()
+                .Which.Should().Match<Erro>(e => e.Code == "url.invalida" && e.Type == TipoErro.Validation);
         }
 
-        [Fact, DisplayName("Deve lançar exceção quando a URL ultrapassar 100 caracteres no padrão")]
-        public void Criar_MaiorQue100_DeveLancarDomainException()
+        [Fact, DisplayName("Deve devolver falha url.longa-demais quando a URL ultrapassar 100 caracteres no padrão")]
+        public void Criar_MaiorQue100_DeveDevolverFalha()
         {
-            var act = () => UrlValueObject.Criar("https://app.com/" + new string('x', 100));
+            var resultado = UrlValueObject.Criar("https://app.com/" + new string('x', 100));
 
-            act.Should().Throw<DomainException>();
+            resultado.IsSuccess.Should().BeFalse();
+            resultado.Errors.Should().ContainSingle()
+                .Which.Should().Match<Erro>(e => e.Code == "url.longa-demais" && e.Type == TipoErro.Validation);
         }
 
         [Fact, DisplayName("Deve aceitar URL de até 500 caracteres no DAST")]
@@ -58,15 +56,16 @@ namespace Esteira.Domain.Tests.Common.ValueObjects
         {
             var url = "https://app.com/" + new string('x', 400);
 
-            UrlValueObject.CriarDast(url).Valor.Should().Be(url);
+            UrlValueObject.CriarDast(url).Value.Valor.Should().Be(url);
         }
 
-        [Fact, DisplayName("Deve lançar exceção quando a URL ultrapassar 500 caracteres no DAST")]
-        public void CriarDast_MaiorQue500_DeveLancarDomainException()
+        [Fact, DisplayName("Deve devolver falha url.longa-demais quando a URL ultrapassar 500 caracteres no DAST")]
+        public void CriarDast_MaiorQue500_DeveDevolverFalha()
         {
-            var act = () => UrlValueObject.CriarDast("https://app.com/" + new string('x', 500));
+            var resultado = UrlValueObject.CriarDast("https://app.com/" + new string('x', 500));
 
-            act.Should().Throw<DomainException>();
+            resultado.IsSuccess.Should().BeFalse();
+            resultado.Errors.Should().ContainSingle().Which.Code.Should().Be("url.longa-demais");
         }
     }
 }
