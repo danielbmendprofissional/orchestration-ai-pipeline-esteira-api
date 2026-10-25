@@ -30,5 +30,20 @@ namespace Esteira.Api.Autenticacao
             => payload is { ValueKind: JsonValueKind.Object } p && p.TryGetProperty(nome, out var valor) && valor.ValueKind == JsonValueKind.String
                 ? valor.GetString()
                 : null;
+
+        // Roles do realm: realm_access.roles.
+        public static IEnumerable<string> Perfis(JsonElement? payload)
+        {
+            if (payload is { ValueKind: JsonValueKind.Object } p
+                && p.TryGetProperty("realm_access", out var acesso) && acesso.ValueKind == JsonValueKind.Object
+                && acesso.TryGetProperty("roles", out var roles) && roles.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var role in roles.EnumerateArray())
+                {
+                    if (role.ValueKind == JsonValueKind.String && role.GetString() is { Length: > 0 } texto)
+                        yield return texto;
+                }
+            }
+        }
     }
 }

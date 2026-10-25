@@ -6,7 +6,8 @@ using Esteira.Application.Interfaces.Usuario;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
 using Esteira.IoC.Configuracoes;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
 using Prometheus;
@@ -75,21 +76,18 @@ builder.Services.AddOpenApi();
 
 var keycloakAuthority = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:Authority");
 builder.Services.Configure<AutenticacaoSettings>(builder.Configuration.GetSection(AutenticacaoSettings.Secao));
-var autenticacao = builder.Configuration.GetSection(AutenticacaoSettings.Secao).Get<AutenticacaoSettings>() ?? new AutenticacaoSettings();
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = keycloakAuthority;
-        options.Audience = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientId");
-        options.RequireHttpsMetadata = autenticacao.RequerHttps;
-        options.MapInboundClaims = false;
-    });
+Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientId");
 Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientSecret");
 Configuracao.Obrigatoria(builder.Configuration, "Autenticacao:UrlPublica");
 builder.Services.AddHttpClient<IProvedorOidc, ProvedorOidcKeycloak>();
 builder.Services.AddScoped<FluxoLogin>();
-builder.Services.AddAuthorization();
+// Sessão BFF (ADR-0004): cookie opaco -> sessão no Redis. Sem JWT Bearer.
+builder.Services
+    .AddAuthentication(SessaoAuthenticationHandler.Esquema)
+    .AddScheme<AuthenticationSchemeOptions, SessaoAuthenticationHandler>(SessaoAuthenticationHandler.Esquema, null);
+// Sessão exigida por padrão em todo endpoint; quem não quer declara [AllowAnonymous].
+builder.Services.AddAuthorization(options =>
+    options.FallbackPolicy = new AuthorizationPolicyBuilder(SessaoAuthenticationHandler.Esquema).RequireAuthenticatedUser().Build());
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
@@ -121,8 +119,8 @@ app.UseHttpMetrics();
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("Frontend");
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
 app.UseHttpsRedirection();
@@ -133,7 +131,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
-app.MapMetrics();
+app.MapHealthChecks("/health").AllowAnonymous();
+app.MapMetrics().AllowAnonymous();
 
 await app.RunAsync();

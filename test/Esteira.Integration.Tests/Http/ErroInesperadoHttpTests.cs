@@ -63,7 +63,17 @@ namespace Esteira.Integration.Tests.Http
         [Fact, DisplayName("Deve responder 404 sem corpo quando a rota não existe")]
         public async Task RotaInexistente_DeveResponder404SemCorpo()
         {
-            var resposta = await _cliente.GetAsync("/api/rota-que-nao-existe", TestContext.Current.CancellationToken);
+            // B3: a sessão é exigida até em rota sem endpoint (política padrão), então o 404 vale para quem está logado.
+            var sessoes = _api.Services.GetRequiredService<Esteira.Application.Interfaces.Sessao.ISessaoStore>();
+            var id = Guid.NewGuid().ToString("N");
+            var tokens = ProvedorOidcFalso.Tokens("n");
+            await sessoes.CriarAsync(
+                new Esteira.Application.Interfaces.Sessao.SessaoUsuario(id, "user-1", tokens.AccessToken, tokens.RefreshToken, tokens.IdToken, DateTimeOffset.UtcNow.AddMinutes(5)),
+                TimeSpan.FromMinutes(5));
+            var pedido = new HttpRequestMessage(HttpMethod.Get, "/api/rota-que-nao-existe");
+            pedido.Headers.Add("Cookie", $"esteira_session={id}");
+
+            var resposta = await _cliente.SendAsync(pedido, TestContext.Current.CancellationToken);
 
             resposta.StatusCode.Should().Be(HttpStatusCode.NotFound);
             (await resposta.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().BeEmpty();
