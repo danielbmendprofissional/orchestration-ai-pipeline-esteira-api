@@ -16,6 +16,7 @@ using Serilog.Sinks.OpenTelemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// O logger fica no host, não no Log.Logger estático: cada host (inclusive os de teste, em paralelo) escreve nos próprios sinks.
 builder.Host.UseSerilog((context, services, configuration) =>
 {
     configuration
@@ -37,7 +38,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
             otlp.ResourceAttributes["service.name"] = "esteira-api";
         });
     }
-});
+}, preserveStaticLogger: true);
 
 builder.Services
     .AddControllers(options =>
@@ -66,6 +67,10 @@ var connectionString = Configuracao.Obrigatoria(
 
 builder.Services.AddDbContext<EsteiraContext>(options => options.UsarPostgres(connectionString));
 builder.Services.AddDbContext<EsteiraReadContext>(options => options.UsarPostgres(connectionString));
+
+// Exception não tratada: Problem Details 500 com traceId, sem detalhe técnico (ADR-0003).
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ErroInesperadoHandler>();
 
 builder.Services.AddOpenApi();
 
@@ -118,9 +123,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseExceptionHandler();
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<ExceptionMiddleware>();
 
 app.MapControllers();
 app.MapHealthChecks("/health");

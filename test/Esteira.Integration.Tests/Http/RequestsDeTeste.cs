@@ -103,6 +103,17 @@ namespace Esteira.Integration.Tests.Http
         }
     }
 
+    // Critério 9: exception não tratada. A mensagem é marcada para o teste provar que ela não vaza.
+    public sealed record PedidoQueLanca : IRequest<Result<string>>;
+
+    public sealed class PedidoQueLancaHandler : IRequestHandler<PedidoQueLanca, Result<string>>
+    {
+        public const string Mensagem = "detalhe-tecnico-que-nao-pode-vazar";
+
+        public Task<Result<string>> Handle(PedidoQueLanca request, CancellationToken cancellationToken)
+            => throw new InvalidOperationException(Mensagem);
+    }
+
     internal static class ErrosDeTeste
     {
         public static Erro ErroDo(TipoErro tipo) => tipo switch
