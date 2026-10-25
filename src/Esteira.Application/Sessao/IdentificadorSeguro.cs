@@ -10,6 +10,6 @@ namespace Esteira.Application.Sessao
         [GeneratedRegex(@"^[A-Za-z0-9_-]{16,64}\z")]
         private static partial Regex Formato();
 
-        public static bool Valido(string? valor) => valor is not null && Formato().IsMatch(valor);
+        public static bool Valido([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? valor) => valor is not null && Formato().IsMatch(valor);
     }
 }
