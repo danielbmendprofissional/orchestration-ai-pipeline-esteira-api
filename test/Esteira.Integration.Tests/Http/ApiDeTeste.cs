@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Core;
 
@@ -34,6 +35,8 @@ namespace Esteira.Integration.Tests.Http
                 services.AddControllers()
                     .AddApplicationPart(typeof(ResultadoDeTesteController).Assembly)
                     .AddNewtonsoftJson();
+
+                services.AddDbContext<Paginacao.ContextoDePaginacao>(o => o.UseNpgsql(infra.ConnectionString));
 
                 services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(PedidoComValor).Assembly));
 

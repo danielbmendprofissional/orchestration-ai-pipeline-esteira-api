@@ -48,17 +48,18 @@ namespace Esteira.Integration.Tests.Paginacao
                 .AddInterceptors(interceptores)
                 .Options;
 
-        // Cria o schema e semeia 25 itens que repetem valor em Grupo (3 grupos).
+        // Idempotente (lock consultivo): classes de teste em paralelo semeiam o mesmo schema. Cria e semeia 25 itens que repetem valor em Grupo (3 grupos).
         public static async Task SemearAsync(InfraestruturaFixture infra)
         {
             await using var conexao = new NpgsqlConnection(infra.ConnectionString);
             await conexao.OpenAsync();
             await using var comando = conexao.CreateCommand();
             comando.CommandText = $"""
-                drop schema if exists {Schema} cascade;
-                create schema {Schema};
-                create table {Schema}.itens (id bigint primary key, nome text not null, grupo int not null);
-                insert into {Schema}.itens select i, 'item-' || lpad(i::text, 2, '0'), i % 3 from generate_series(1, 25) i;
+                select pg_advisory_lock(7001);
+                create schema if not exists {Schema};
+                create table if not exists {Schema}.itens (id bigint primary key, nome text not null, grupo int not null);
+                insert into {Schema}.itens select i, 'item-' || lpad(i::text, 2, '0'), i % 3 from generate_series(1, 25) i on conflict do nothing;
+                select pg_advisory_unlock(7001);
                 """;
             await comando.ExecuteNonQueryAsync();
         }
