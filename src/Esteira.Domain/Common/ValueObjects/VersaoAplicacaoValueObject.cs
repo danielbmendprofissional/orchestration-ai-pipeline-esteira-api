@@ -1,4 +1,4 @@
-﻿using Esteira.Domain.Common.Exceptions;
+using Esteira.Domain.Common.Resultados;
 using Esteira.Domain.Common.Validations;
 namespace Esteira.Domain.Common.ValueObjects
 {
@@ -6,38 +6,37 @@ namespace Esteira.Domain.Common.ValueObjects
     {
         private VersaoAplicacaoValueObject(int major)
         {
-            Guard.Against<DomainException>(
-                major < 0,
-                "A versão da aplicação não pode ser negativa.");
-
             Major = major;
         }
 
         public int Major { get; }
 
-        public static VersaoAplicacaoValueObject Criar(int major) => new(major);
+        public static Result<VersaoAplicacaoValueObject> Criar(int major)
+            => major < 0
+                ? new Erro("versao.invalida", "A versão da aplicação não pode ser negativa.", TipoErro.Validation)
+                : Result<VersaoAplicacaoValueObject>.Sucesso(new(major));
 
-        public static VersaoAplicacaoValueObject Criar(string texto)
+        public static Result<VersaoAplicacaoValueObject> Criar(string texto)
         {
-            Guard.AgainstNullOrWhiteSpace(texto, nameof(texto));
+            if (!TentarMajor(texto, out var major))
+                return new Erro("versao.invalida", $"Versão da aplicação inválida: '{texto}'.", TipoErro.Validation);
 
-            var major = 0;
-
-            Guard.Against<DomainException>(
-                !int.TryParse(texto.Trim().TrimStart('v', 'V'), out major),
-                $"Versão da aplicação inválida: '{texto}'.");
-
-            return new(major);
+            return Criar(major);
         }
 
-        public static VersaoAplicacaoValueObject DaTag(string tag)
+        public static Result<VersaoAplicacaoValueObject> DaTag(string tag)
         {
-            Guard.AgainstNullOrWhiteSpace(tag, nameof(tag));
+            if (string.IsNullOrWhiteSpace(tag) || !TentarMajor(tag.Trim().Split('.')[0], out var major) || major < 0)
+                return new Erro("versao.tag-invalida", $"Tag de versão inválida: '{tag}'.", TipoErro.Validation);
 
-            return Criar(tag.Trim().Split('.')[0]);
+            return Result<VersaoAplicacaoValueObject>.Sucesso(new(major));
         }
 
-        public bool AceitaTag(string tag) => DaTag(tag).Equals(this);
+        public bool AceitaTag(string tag)
+        {
+            var versao = DaTag(tag);
+            return versao.IsSuccess && versao.Value.Equals(this);
+        }
 
         public bool EhMenorQue(VersaoAplicacaoValueObject outra)
         {
@@ -47,5 +46,12 @@ namespace Esteira.Domain.Common.ValueObjects
         }
 
         public override string ToString() => $"v{Major}";
+
+        private static bool TentarMajor(string texto, out int major)
+        {
+            major = 0;
+            return !string.IsNullOrWhiteSpace(texto)
+                && int.TryParse(texto.Trim().TrimStart('v', 'V'), out major);
+        }
     }
 }

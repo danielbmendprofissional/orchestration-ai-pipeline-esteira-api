@@ -1,5 +1,7 @@
 using Esteira.Domain.Common.Resultados;
 using FluentValidation;
+using Esteira.Application.Interfaces.Transaction;
+using MassTransit;
 using MediatR;
 
 namespace Esteira.Integration.Tests.Http
@@ -100,6 +102,29 @@ namespace Esteira.Integration.Tests.Http
         {
             Execucoes++;
             return Task.FromResult(Result<string>.Sucesso($"quantidade:{request.Quantidade}"));
+        }
+    }
+
+    // Critério 9: exception não tratada. A mensagem é marcada para o teste provar que ela não vaza.
+    public sealed record PedidoQueLanca : IRequest<Result<string>>;
+
+    public sealed class PedidoQueLancaHandler : IRequestHandler<PedidoQueLanca, Result<string>>
+    {
+        public const string Mensagem = "detalhe-tecnico-que-nao-pode-vazar";
+
+        public Task<Result<string>> Handle(PedidoQueLanca request, CancellationToken cancellationToken)
+            => throw new InvalidOperationException(Mensagem);
+    }
+
+    // Critério 7: command transacional que publica mensagem (outbox) e devolve falha.
+    public sealed record PedidoQuePublicaEFalha(Guid Marcador) : IRequest<Result>, ITransactionRequest;
+
+    public sealed class PedidoQuePublicaEFalhaHandler(IPublishEndpoint publicador) : IRequestHandler<PedidoQuePublicaEFalha, Result>
+    {
+        public async Task<Result> Handle(PedidoQuePublicaEFalha request, CancellationToken cancellationToken)
+        {
+            await publicador.Publish(new Mensageria.MensagemDeTeste(request.Marcador), cancellationToken);
+            return Result.Falha(new Erro("teste.falha", "Falhou.", TipoErro.Failure));
         }
     }
 

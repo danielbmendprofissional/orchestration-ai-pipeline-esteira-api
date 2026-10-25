@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog.Core;
 
 namespace Esteira.Integration.Tests.Http
 {
@@ -38,6 +39,10 @@ namespace Esteira.Integration.Tests.Http
 
                 // Validators de teste moram neste assembly; sem isso o pipeline de validação não os enxerga.
                 services.AddValidatorsFromAssembly(typeof(PedidoValidado).Assembly);
+
+                // O Serilog da API lê sinks do container (ReadFrom.Services): o teste enxerga o log emitido.
+                services.AddSingleton<LogDeTeste>();
+                services.AddSingleton<ILogEventSink>(sp => sp.GetRequiredService<LogDeTeste>());
             });
         }
     }

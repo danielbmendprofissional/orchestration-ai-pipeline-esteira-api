@@ -1,4 +1,4 @@
-﻿using Esteira.Domain.Common.Exceptions;
+﻿using Esteira.Domain.Common.Resultados;
 using Esteira.Domain.Common.Validations;
 namespace Esteira.Domain.Common.ValueObjects
 {
@@ -6,17 +6,18 @@ namespace Esteira.Domain.Common.ValueObjects
     {
         private ResumoSeveridadeValueObject() { }
 
-        public ResumoSeveridadeValueObject(int critica, int alta, int media, int baixa)
+        private ResumoSeveridadeValueObject(int critica, int alta, int media, int baixa)
         {
-            Guard.Against<DomainException>(
-                critica < 0 || alta < 0 || media < 0 || baixa < 0,
-                "As quantidades de vulnerabilidades não podem ser negativas.");
-
             VulnerabilidadeCritica = critica;
             VulnerabilidadeAlta = alta;
             VulnerabilidadeMedia = media;
             VulnerabilidadeBaixa = baixa;
         }
+
+        public static Result<ResumoSeveridadeValueObject> Criar(int critica, int alta, int media, int baixa)
+            => critica < 0 || alta < 0 || media < 0 || baixa < 0
+                ? new Erro("severidade.quantidade-negativa", "As quantidades de vulnerabilidades não podem ser negativas.", TipoErro.Validation)
+                : Result<ResumoSeveridadeValueObject>.Sucesso(new(critica, alta, media, baixa));
 
         public int VulnerabilidadeCritica { get; }
         public int VulnerabilidadeAlta { get; }

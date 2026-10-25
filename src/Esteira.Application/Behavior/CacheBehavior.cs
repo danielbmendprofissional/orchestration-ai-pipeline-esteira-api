@@ -1,4 +1,5 @@
 using Esteira.Application.Interfaces.Cache;
+using Esteira.Domain.Common.Resultados;
 using MediatR;
 
 namespace Esteira.Application.Behavios
@@ -20,7 +21,9 @@ namespace Esteira.Application.Behavios
             CancellationToken cancellationToken)
         {
             if (request is ICacheableQuery consulta)
-                return await _cache.ObterOuCriarAsync(consulta.ChaveCache, () => next(), consulta.DuracaoCache);
+                return await _cache.ObterOuCriarAsync(consulta.ChaveCache, () => next(), consulta.DuracaoCache,
+                    // ADR-0003: Result de falha não entra no cache; a próxima chamada executa o handler de novo.
+                    resposta => resposta is not Result { IsSuccess: false });
 
             var resposta = await next();
 

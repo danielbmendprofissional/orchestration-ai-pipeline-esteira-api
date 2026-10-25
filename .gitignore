@@ -25,6 +25,7 @@ obj/
 *.dbmdl
 *.pdb
 *.cache
+!src/Esteira.Infra.Cache/
 artifacts/
 
 # --- Node / Angular (frontend) ---

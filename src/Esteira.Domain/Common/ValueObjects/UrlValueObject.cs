@@ -1,5 +1,4 @@
-﻿using Esteira.Domain.Common.Exceptions;
-using Esteira.Domain.Common.Validations;
+using Esteira.Domain.Common.Resultados;
 namespace Esteira.Domain.Common.ValueObjects
 {
     public sealed record UrlValueObject
@@ -7,33 +6,29 @@ namespace Esteira.Domain.Common.ValueObjects
         public const int TamanhoMaximoPadrao = 100;
         public const int TamanhoMaximoDast = 500;
 
-        private UrlValueObject(string url, int tamanhoMaximo)
+        private UrlValueObject(string valor)
         {
-            Uri uri = null;
-
-            Guard.Against<DomainException>(
-                !Uri.TryCreate(url?.Trim(), UriKind.Absolute, out uri)
-                    || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps),
-                "A URL informada é inválida.");
-
-            var valor = uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
-
-            Guard.Against<DomainException>(
-                valor.Length > tamanhoMaximo,
-                $"A URL deve ter no máximo {tamanhoMaximo} caracteres.");
-
             Valor = valor;
         }
 
         public string Valor { get; }
 
-        public static UrlValueObject Criar(string url, int tamanhoMaximo = TamanhoMaximoPadrao)
-            => new(url, tamanhoMaximo);
+        public static Result<UrlValueObject> Criar(string url, int tamanhoMaximo = TamanhoMaximoPadrao)
+        {
+            if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                return new Erro("url.invalida", "A URL informada é inválida.", TipoErro.Validation);
 
-        public static UrlValueObject CriarDast(string url)
-            => new(url, TamanhoMaximoDast);
+            var valor = uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
 
-        public static string Normalize(string url) => Criar(url).Valor;
+            if (valor.Length > tamanhoMaximo)
+                return new Erro("url.longa-demais", $"A URL deve ter no máximo {tamanhoMaximo} caracteres.", TipoErro.Validation);
+
+            return Result<UrlValueObject>.Sucesso(new UrlValueObject(valor));
+        }
+
+        public static Result<UrlValueObject> CriarDast(string url)
+            => Criar(url, TamanhoMaximoDast);
 
         public override string ToString() => Valor;
     }
