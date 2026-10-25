@@ -8,6 +8,7 @@ using Esteira.IoC;
 using Esteira.IoC.Configuracoes;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
 using Prometheus;
@@ -102,6 +103,15 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<EsteiraContext>("postgres")
     .AddUrlGroup(new Uri($"{keycloakAuthority.TrimEnd('/')}/.well-known/openid-configuration"), "keycloak");
 
+// O Ingress é o único que alcança o Service da API no cluster, então os X-Forwarded-* dele são confiáveis; por padrão o
+// ASP.NET só aceitaria proxy em loopback e ignoraria o cabeçalho. Só esquema e IP: o host público vem de Autenticacao:UrlPublica.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy => policy
@@ -114,6 +124,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Atrás do Ingress o TLS termina no proxy: sem isto o pod enxerga sempre http e o IP do Ingress. Tem de ser o primeiro
+// da pipeline (antes do log e do redirect para HTTPS).
+if (!app.Environment.IsDevelopment())
+    app.UseForwardedHeaders();
+
 app.UseMiddleware<TempoRequisicaoMiddleware>();
 app.UseSerilogRequestLogging();
 app.UseHttpMetrics();
@@ -125,7 +140,10 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference().AllowAnonymous();
 }
 
-app.UseHttpsRedirection();
+// Em Development a API fica atrás do proxy do ng serve (mesma origem do BFF, ADR-0004): redirecionar para HTTPS
+// jogaria o login para outra origem (perfil "https" do launchSettings, porta 7239). Fora dele vale o redirect.
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 
 app.UseExceptionHandler();
 
