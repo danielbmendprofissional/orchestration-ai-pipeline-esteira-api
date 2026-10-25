@@ -1,7 +1,6 @@
 using Esteira.Api.Autenticacao;
 using Esteira.Api.Erros;
 using Esteira.Api.Middleware;
-using Esteira.Api.Paginacao;
 using Esteira.Application.Interfaces.Usuario;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
@@ -43,7 +42,6 @@ builder.Host.UseSerilog((context, services, configuration) =>
 builder.Services
     .AddControllers(options =>
     {
-        options.Filters.Add<PaginacaoResultFilter>();
         options.Filters.Add<ResultadoFilter>();
     })
     .ConfigureApiBehaviorOptions(options =>
@@ -104,8 +102,7 @@ builder.Services.AddCors(options =>
         .WithOrigins(builder.Configuration.GetSection("Cors:Origens").Get<string[]>() ?? new[] { "http://localhost:4200" })
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials()
-        .WithExposedHeaders(PaginacaoHttpExtensions.Header));
+        .AllowCredentials());
 });
 
 var app = builder.Build();
