@@ -4,6 +4,7 @@ using Esteira.Application.Common.Paginacao;
 
 namespace Esteira.Application.Tests.Paginacao
 {
+    [Trait("Fatia", "B1")]
     public class PaginaDtoTests
     {
         private static PaginaDto<int> Pagina(int total, int tamanho) => new()

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Esteira.Integration.Tests.Sessao
 {
+    [Trait("Fatia", "B3")]
     public sealed class ConfiguracaoDoRedisTests(InfraestruturaFixture infra)
     {
         private sealed class ApiSemChave(InfraestruturaFixture infra, string ausente) : WebApplicationFactory<Program>

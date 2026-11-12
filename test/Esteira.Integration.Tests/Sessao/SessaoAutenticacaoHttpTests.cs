@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Esteira.Integration.Tests.Sessao
 {
     // Critérios 6, 7, 8, 14 e 15 da B3: o esquema `Sessao` lê o cookie, busca a sessão no Redis e exige login por padrão.
+    [Trait("Fatia", "B3")]
     public sealed class SessaoAutenticacaoHttpTests : IClassFixture<ApiDeTeste>
     {
         private readonly ISessaoStore _sessoes;

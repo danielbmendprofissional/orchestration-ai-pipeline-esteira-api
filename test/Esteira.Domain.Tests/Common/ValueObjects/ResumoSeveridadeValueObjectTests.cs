@@ -5,6 +5,7 @@ using System.Reflection;
 using AwesomeAssertions;
 namespace Esteira.Domain.Tests.Common.ValueObjects
 {
+    [Trait("Fatia", "B2")]
     public class ResumoSeveridadeValueObjectTests
     {
         private static ResumoSeveridadeValueObject Resumo(int c, int a, int m, int b) => ResumoSeveridadeValueObject.Criar(c, a, m, b).Value;

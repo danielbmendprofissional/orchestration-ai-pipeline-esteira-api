@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Esteira.Integration.Tests.Sessao
 {
     // Critério 17 da B3 (parte do Keycloak/URL pública): sem a chave a API não sobe e diz qual falta.
+    [Trait("Fatia", "B3")]
     public sealed class ConfiguracaoDaSessaoTests(InfraestruturaFixture infra)
     {
         private sealed class ApiSemChave(InfraestruturaFixture infra, string ausente) : WebApplicationFactory<Program>

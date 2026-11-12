@@ -8,6 +8,7 @@ using Esteira.Integration.Tests.Infraestrutura;
 namespace Esteira.Integration.Tests.Paginacao
 {
     // ADR-0002, fatia B1: contagem, ordenação e recorte acontecem no banco.
+    [Trait("Fatia", "B1")]
     public class PaginarAsyncTests(InfraestruturaFixture infra)
     {
         private static readonly IReadOnlyList<ItemDeTesteDto> Todos =

@@ -11,6 +11,7 @@ namespace Esteira.Integration.Tests.Sessao
 {
     // Critério 5 da B3 (ADR-0004): nenhum token do Keycloak sai da API — nem em corpo, header, cookie ou URL,
     // nem no log. Única exceção: o id_token_hint do redirect de logout, que é para o próprio Keycloak.
+    [Trait("Fatia", "B3")]
     public sealed class TokensNaoVazamHttpTests : IClassFixture<ApiDeTeste>
     {
         private readonly ApiDeTeste _api;

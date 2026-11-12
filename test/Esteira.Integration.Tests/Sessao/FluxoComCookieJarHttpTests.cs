@@ -12,6 +12,7 @@ namespace Esteira.Integration.Tests.Sessao
 {
     // O fluxo inteiro como um navegador o faz: o cliente guarda e reenvia cookies sozinho (HandleCookies), então
     // atributos como Path, SameSite e expiração são exercitados de verdade — os outros testes mandam o cookie na mão.
+    [Trait("Fatia", "B3")]
     public sealed class FluxoComCookieJarHttpTests : IClassFixture<ApiDeTeste>
     {
         private readonly ProvedorOidcFalso _provedor;

@@ -8,6 +8,7 @@ namespace Esteira.Integration.Tests.Http
 {
     // BFF atrás do proxy do ng serve (dev) e do Ingress (cluster): em dev a API não pode mandar o navegador para
     // outra origem (HTTPS); fora dele, o esquema e o IP vêm dos X-Forwarded-* do Ingress.
+    [Trait("Fatia", "B3")]
     public sealed class HttpsEEncaminhamentoHttpTests(InfraestruturaFixture infra)
     {
         private static readonly WebApplicationFactoryClientOptions SemRedirect = new() { AllowAutoRedirect = false };

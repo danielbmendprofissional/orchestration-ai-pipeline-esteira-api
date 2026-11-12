@@ -8,6 +8,7 @@ using Esteira.Integration.Tests.Infraestrutura;
 namespace Esteira.Integration.Tests.Http
 {
     // ADR-0003, fatia B2: o filtro de resultado traduz Result → HTTP num ponto só.
+    [Trait("Fatia", "B2")]
     public class ResultadoHttpTests : IClassFixture<ApiDeTeste>
     {
         private readonly HttpClient _cliente;

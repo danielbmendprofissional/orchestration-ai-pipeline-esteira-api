@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Esteira.Integration.Tests.Sessao
 {
     // Critérios 9–13 da B3: refresh com trava e reuse detection, e logout, contra o Redis real e o Keycloak falso.
+    [Trait("Fatia", "B3")]
     public sealed class RefreshLogoutHttpTests : IClassFixture<ApiDeTeste>, IAsyncLifetime
     {
         private readonly ApiDeTeste _api;

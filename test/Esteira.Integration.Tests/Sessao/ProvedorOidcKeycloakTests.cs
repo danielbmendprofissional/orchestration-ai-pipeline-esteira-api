@@ -11,6 +11,7 @@ namespace Esteira.Integration.Tests.Sessao
 {
     // Critérios 11 e 12 da B3 no adaptador de verdade: como o Keycloak recusa decide se a sessão cai (invalid_grant =
     // reuso) ou se só o provedor está fora (nada disso pode derrubar a sessão). Sem rede: o handler HTTP é de mentira.
+    [Trait("Fatia", "B3")]
     public class ProvedorOidcKeycloakTests
     {
         private const string Discovery = """

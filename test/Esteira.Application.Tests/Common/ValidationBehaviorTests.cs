@@ -9,6 +9,7 @@ using NSubstitute;
 namespace Esteira.Application.Tests.Common
 {
     // Critérios 4 e 5 da fatia B2: falha do FluentValidation vira Result de falha, sem executar o handler.
+    [Trait("Fatia", "B2")]
     public class ValidationBehaviorTests
     {
         public sealed record Requisicao(string Url);

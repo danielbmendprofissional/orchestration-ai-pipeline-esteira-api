@@ -9,6 +9,7 @@ namespace Esteira.Integration.Tests.Http
 {
     // Critério 9 da fatia B2: exception não tratada vira Problem Details 500, sem detalhe técnico,
     // e o log guarda a exception com o mesmo traceId da resposta. Rota inexistente segue 404 sem corpo.
+    [Trait("Fatia", "B2")]
     public class ErroInesperadoHttpTests : IClassFixture<ApiDeTeste>
     {
         private readonly ApiDeTeste _api;

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Esteira.Application.Tests.Common
 {
+    [Trait("Fatia", "B2")]
     public class CacheBehaviorTests
     {
         public sealed class ConsultaCacheada : ICacheableQuery

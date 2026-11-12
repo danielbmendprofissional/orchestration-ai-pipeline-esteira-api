@@ -5,6 +5,7 @@ using System.ComponentModel;
 
 namespace Esteira.Domain.Tests.Common.ValueObjects
 {
+    [Trait("Fatia", "B2")]
     public class LimitesSeveridadeValueObjectTests
     {
         private static LimitesSeveridadeValueObject Limites(int c, int a, int m, int b) => LimitesSeveridadeValueObject.Criar(c, a, m, b).Value;

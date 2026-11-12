@@ -4,6 +4,7 @@ using Esteira.Application.Sessao;
 namespace Esteira.Application.Tests.Sessao
 {
     // Critério 4 da B3: o retorno do login é só caminho relativo da mesma origem; o resto vira "/".
+    [Trait("Fatia", "B3")]
     public class ReturnUrlSeguroTests
     {
         [Theory]

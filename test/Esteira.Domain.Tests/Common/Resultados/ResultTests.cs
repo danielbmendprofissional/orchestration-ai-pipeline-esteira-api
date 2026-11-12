@@ -5,6 +5,7 @@ using Esteira.Domain.Common.Resultados;
 namespace Esteira.Domain.Tests.Common.Resultados
 {
     // ADR-0003: o domínio decide e devolve Result; o code é estável (<area>.<motivo>), a message é pt-BR.
+    [Trait("Fatia", "B2")]
     public class ResultTests
     {
         private static Erro ErroDeValidacao(string code = "url.invalida")

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using AwesomeAssertions;
 namespace Esteira.Domain.Tests.Common.ValueObjects
 {
+    [Trait("Fatia", "B2")]
     public class UrlValueObjectTests
     {
         [Theory, DisplayName("Deve normalizar removendo barra final, query e espaços")]

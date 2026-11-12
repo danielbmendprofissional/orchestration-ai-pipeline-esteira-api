@@ -8,6 +8,7 @@ using NSubstitute;
 
 namespace Esteira.Application.Tests.Common
 {
+    [Trait("Fatia", "B2")]
     public class TransactionBehaviorTests
     {
         public sealed class Consulta { }

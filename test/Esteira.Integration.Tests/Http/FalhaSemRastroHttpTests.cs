@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Esteira.Integration.Tests.Http
 {
     // Critério 7 da fatia B2 ponta a ponta: command que devolve Result de falha não deixa rastro no outbox.
+    [Trait("Fatia", "B2")]
     public class FalhaSemRastroHttpTests(InfraestruturaFixture infra)
     {
         private readonly HttpClient _cliente = new ApiDeTeste(infra).CreateClient();

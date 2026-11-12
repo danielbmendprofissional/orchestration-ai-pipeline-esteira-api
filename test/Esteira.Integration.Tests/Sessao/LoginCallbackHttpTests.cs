@@ -11,6 +11,7 @@ using StackExchange.Redis;
 namespace Esteira.Integration.Tests.Sessao
 {
     // Critérios 1–4 da B3: login e callback do BFF (ADR-0004) contra o Redis real e o Keycloak falso.
+    [Trait("Fatia", "B3")]
     public sealed class LoginCallbackHttpTests : IClassFixture<ApiDeTeste>, IAsyncLifetime
     {
         private const string RedirectUriEsperado = "http://localhost:4200/api/v1/auth/callback";

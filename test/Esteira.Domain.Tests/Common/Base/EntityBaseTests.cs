@@ -3,6 +3,7 @@ using System.ComponentModel;
 using AwesomeAssertions;
 namespace Esteira.Domain.Tests.Common.Base
 {
+    [Trait("Fatia", "M0")]
     public class EntityBaseTests
     {
         private sealed class EntidadeDeTeste : EntityBase { }

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Esteira.Integration.Tests.Sessao
 {
     // Critério 6 da B3: IUsuarioAtual sai dos claims que o esquema `Sessao` monta a partir do token guardado.
+    [Trait("Fatia", "B3")]
     public class UsuarioAtualTests
     {
         private static UsuarioAtual Com(params Claim[] claims)

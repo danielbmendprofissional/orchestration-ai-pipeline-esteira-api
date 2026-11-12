@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 namespace Esteira.Integration.Tests.Mensageria
 {
     // Critérios 1–4 da spec M0 (specs/feature/base/01-esqueleto-do-modelo.md), ADR-0010.
+    [Trait("Fatia", "M0")]
     public class OutboxTests(InfraestruturaFixture infra)
     {
         private static readonly TimeSpan Entrega = TimeSpan.FromSeconds(30);

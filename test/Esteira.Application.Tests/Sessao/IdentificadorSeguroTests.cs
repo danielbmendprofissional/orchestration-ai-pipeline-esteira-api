@@ -5,6 +5,7 @@ namespace Esteira.Application.Tests.Sessao
 {
     // O id da sessão e o state do login vêm do cliente (cookie, query) e viram parte de chave do Redis:
     // só a forma que a API gera (base64url, 16 a 64 caracteres) passa.
+    [Trait("Fatia", "B3")]
     public class IdentificadorSeguroTests
     {
         [Theory]

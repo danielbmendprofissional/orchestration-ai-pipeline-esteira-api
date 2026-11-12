@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 namespace Esteira.Integration.Tests.Paginacao
 {
     // ADR-0002, fatia B1.2: leitura de X-Page/X-Page-Size (headers) e sort/order (query string).
+    [Trait("Fatia", "B1")]
     public class PaginacaoHttpExtensionsTests
     {
         private static HttpRequest Pedido(string? pagina = null, string? tamanho = null, string? sort = null, string? order = null)

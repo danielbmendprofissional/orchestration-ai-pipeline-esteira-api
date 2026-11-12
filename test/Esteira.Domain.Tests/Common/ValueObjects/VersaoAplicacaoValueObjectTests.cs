@@ -4,6 +4,7 @@ using System.ComponentModel;
 using AwesomeAssertions;
 namespace Esteira.Domain.Tests.Common.ValueObjects
 {
+    [Trait("Fatia", "B2")]
     public class VersaoAplicacaoValueObjectTests
     {
         [Theory, DisplayName("Deve extrair a versão major da tag")]

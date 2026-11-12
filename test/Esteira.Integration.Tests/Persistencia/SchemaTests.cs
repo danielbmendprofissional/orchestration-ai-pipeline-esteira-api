@@ -6,6 +6,7 @@ using Npgsql;
 namespace Esteira.Integration.Tests.Persistencia
 {
     // ADR-0016: tudo da Esteira no schema "esteira", nada no public.
+    [Trait("Fatia", "M0")]
     public class SchemaTests(InfraestruturaFixture infra)
     {
         private async Task<List<string>> TabelasDoSchemaAsync(string schema)

@@ -7,6 +7,7 @@ using StackExchange.Redis;
 namespace Esteira.Integration.Tests.Sessao
 {
     // Redis real com a ACL do projeto (`+@all -@dangerous -scan` em `esteira:*`, como na infra): o adaptador não pode depender de SCAN/KEYS.
+    [Trait("Fatia", "B3")]
     public sealed class RedisSessaoStoreTests : IAsyncLifetime
     {
         private readonly InfraestruturaFixture _infra;

@@ -10,6 +10,7 @@ namespace Esteira.Integration.Tests.Paginacao
 {
     // ADR-0002, fatia B1.3: o corpo é o array puro e o resto da página vai nos headers X-*.
     [Collection("PaginacaoHttp")]
+    [Trait("Fatia", "B1")]
     public class PaginacaoRespostaHttpTests : IClassFixture<ApiDeTeste>, IAsyncLifetime
     {
         private readonly HttpClient _cliente;

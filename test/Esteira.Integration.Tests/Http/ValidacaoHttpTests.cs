@@ -10,6 +10,7 @@ namespace Esteira.Integration.Tests.Http
 {
     // Critérios 4, 5 e 6 da fatia B2: validação e model binding saem em { errors: [...] },
     // sem exception e sem o ValidationProblemDetails padrão do [ApiController].
+    [Trait("Fatia", "B2")]
     public class ValidacaoHttpTests : IClassFixture<ApiDeTeste>
     {
         private readonly HttpClient _cliente;
