@@ -1,5 +1,7 @@
 # Esteira API — pendências e melhorias
 
+<!-- pendencias: ignorar — os itens abaixo são fatias do mapa (specs/README.md: P1, P2, E1 a E8…); o /proximo já as conta lá, contar aqui seria em dobro -->
+
 Documento de contexto para continuar a evolução do projeto. Atualizado em 2026-10-22, depois do discovery que redesenhou o domínio (ADR-0007, ADR-0008, glossário em `CONTEXT-MAP.md`).
 
 ## Contexto do projeto
