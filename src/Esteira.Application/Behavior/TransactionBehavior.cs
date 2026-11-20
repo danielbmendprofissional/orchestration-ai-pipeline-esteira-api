@@ -1,5 +1,6 @@
 ﻿using Esteira.Application.Interfaces.Transaction;
 using Esteira.Application.Interfaces.UnitOfWork;
+using Esteira.Domain.Common.Resultados;
 using MediatR;
 
 namespace Esteira.Application.Behavios
@@ -26,6 +27,11 @@ namespace Esteira.Application.Behavios
             if (request is not ITransactionRequest)
             {
                 var resposta = await next();
+
+                // ADR-0003: Result de falha não deixa rastro — nada é salvo.
+                if (Falhou(resposta))
+                    return resposta;
+
                 await _uow.SaveChangesAsync();
                 return resposta;
             }
@@ -35,6 +41,12 @@ namespace Esteira.Application.Behavios
             try
             {
                 var response = await next();
+
+                if (Falhou(response))
+                {
+                    await _uow.RollbackAsync();
+                    return response;
+                }
 
                 await _uow.CommitAsync();
 
@@ -46,5 +58,8 @@ namespace Esteira.Application.Behavios
                 throw;
             }
         }
+
+        private static bool Falhou(TResponse resposta)
+            => resposta is Result { IsSuccess: false };
     }
 }

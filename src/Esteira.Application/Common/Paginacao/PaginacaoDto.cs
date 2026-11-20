@@ -1,21 +1,15 @@
-using Newtonsoft.Json;
-
 namespace Esteira.Application.Common.Paginacao
 {
+    // Entrada da paginação, já validada pela Api (ADR-0002): página e tamanho dentro dos limites,
+    // sentido "asc"/"desc". Ordenacao é o nome de uma propriedade do DTO da lista.
     public class PaginacaoDto
     {
         public const int TamanhoPadrao = 10;
+        public const int TamanhoMaximo = 100;
 
-        public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = TamanhoPadrao;
-        public string Order { get; set; }
-        public string SortOrder { get; set; }
-        public int TotalItems { get; set; }
-        public int TotalPages => PageSize <= 0 ? 0 : (int)Math.Ceiling(TotalItems / (double)PageSize);
-
-        [JsonIgnore]
-        public int Pular => (Math.Max(Page, 1) - 1) * Tamanho;
-        [JsonIgnore]
-        public int Tamanho => PageSize <= 0 ? TamanhoPadrao : PageSize;
+        public int Pagina { get; set; } = 1;
+        public int TamanhoPagina { get; set; } = TamanhoPadrao;
+        public string? Ordenacao { get; set; }
+        public string? Sentido { get; set; }
     }
 }

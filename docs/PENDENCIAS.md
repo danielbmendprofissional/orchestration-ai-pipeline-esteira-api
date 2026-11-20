@@ -23,17 +23,17 @@ Documento de contexto para continuar a evolução do projeto. Atualizado em 2026
 
 ## Refatoração do modelo (discovery 2026-10-21/22)
 
-O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias de `specs/README.md`; isto é o mapa do que muda.
+A fatia M0 (2026-10-22) removeu todo o modelo herdado do sistema legado e deixou o esqueleto; o que está em "Muda" e "Entra" nasce nas fatias de `specs/README.md`.
 
 ### Sai
-- [ ] Etapas **GMUD**, **BD** (CRS de banco), **VERSAO** e a **AET única** — `FluxoDeployGmudEntity`, `FluxoDeployBdCrsEntity`, `FluxoDeployVersaoTarefasEntity`, os `Etapa*Service`/`*Rules` correspondentes, controllers `FluxoDeployBancoDadosCrs*`/`Vinculos` e o que for só deles.
-- [ ] **DAST próprio** — `IScannerDast`, `ScannerDastNaoConfigurado`, `AnaliseDastJob`, consumers/mensagens DAST, índice "uma análise por URL". Quem roda o ZAP é o template; o resultado chega pelo `esteira-resultado`.
-- [ ] **`IMigracaoBancoDados`** — migration roda no deploy do template.
-- [ ] **Regra dos 2 fluxos por sistema** e "deploy vai pro fluxo da etapa da branch".
-- [ ] **`POST /api/artefato`** (multipart com Semgrep/Trivy do sistema legado) e os DTOs `SemgrepDtoRequest`/`TrivyDtoRequest`.
-- [ ] **"Somente o criador altera o fluxo"** (`AutorizacaoBehavior`) — substituído pelos papéis por Aplicação.
-- [ ] **"Liberar fluxo sem validação"** (pendência antiga) — não existe: Esteira é fail-closed sem bypass; o MOR aprova com autoaprovação marcada.
-- [ ] **"Burla de tag em HML"** (pendência antiga) — resolvida: tags `v*` protegidas e criadas só pelo bot, linhagem validada pelo `controlar-pipeline`, regra de descendência na Esteira.
+- [x] Etapas **GMUD**, **BD** (CRS de banco), **VERSAO** e a **AET única** — `FluxoDeployGmudEntity`, `FluxoDeployBdCrsEntity`, `FluxoDeployVersaoTarefasEntity`, os `Etapa*Service`/`*Rules` correspondentes, controllers `FluxoDeployBancoDadosCrs*`/`Vinculos` e o que for só deles.
+- [x] **DAST próprio** — `IScannerDast`, `ScannerDastNaoConfigurado`, `AnaliseDastJob`, consumers/mensagens DAST, índice "uma análise por URL". Quem roda o ZAP é o template; o resultado chega pelo `esteira-resultado`.
+- [x] **`IMigracaoBancoDados`** — migration roda no deploy do template.
+- [x] **Regra dos 2 fluxos por sistema** e "deploy vai pro fluxo da etapa da branch".
+- [x] **`POST /api/artefato`** (multipart com Semgrep/Trivy do sistema legado) e os DTOs `SemgrepDtoRequest`/`TrivyDtoRequest`.
+- [x] **"Somente o criador altera o fluxo"** (`AutorizacaoBehavior`) — substituído pelos papéis por Aplicação.
+- [x] **"Liberar fluxo sem validação"** (pendência antiga) — não existe: Esteira é fail-closed sem bypass; o MOR aprova com autoaprovação marcada.
+- [x] **"Burla de tag em HML"** (pendência antiga) — resolvida: tags `v*` protegidas e criadas só pelo bot, linhagem validada pelo `controlar-pipeline`, regra de descendência na Esteira.
 
 ### Muda
 - [ ] **Sistema → Aplicação.** Aplicação aponta para um grupo do GitLab e tem Projetos (um repositório cada, com stack). `ConfiguracaoSistema` vira a **política de severidade da Aplicação por Ambiente** (`LimitesSeveridadeValueObject` por Ambiente; padrão: dev avisa, qa/hml/prd bloqueiam CRITICAL+HIGH).
@@ -61,11 +61,13 @@ O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias 
 
 ### Segurança e acesso
 - [ ] **Audit trail.** A Esteira orquestra o GitLab com um token de bot (ADR-0008): no GitLab todo merge/tag aparece como o bot, então quem clicou, quando e por quê só existe aqui. Integrar a aplicação de audit trail que o Daniel já tem (a ser trazida pro workspace). Cobre também metadados (DataCriação, DataAtualização, usuário) e o módulo de atividade.
-- [ ] **`[Authorize]` nos endpoints** quando a sessão BFF (ADR-0004) entrar; endpoints da pipeline autenticados por `id_token`, não por sessão.
+- [x] **`[Authorize]` nos endpoints** — feito na B3: sessão BFF (ADR-0004) exigida por padrão (`FallbackPolicy`). Falta (E1): endpoints da pipeline (`/api/pipeline/v1`) autenticados por `id_token` do GitLab, com esquema próprio e `[AllowAnonymous]` para a sessão.
+- [ ] **Endurecimento da sessão (revisão de segurança da B3, itens aceitos ou fora do código).** (a) `invalid_grant` no refresh revoga todas as sessões do usuário, também quando é só refresh expirado/SSO ocioso — risco aceito: derruba os outros dispositivos, mas o Keycloak não distingue reuso de expiração de forma estável; revisar se incomodar. (b) Rate limit por IP em `/api/v1/auth/*` e cache curto no `/health` (hoje anônimo e dispara Postgres/Redis/RabbitMQ/Keycloak a cada chamada). (c) `/metrics` e `/health` restritos por rede/Ingress em produção. (d) Cookie com prefixo `__Host-` (exige `Secure`, só fora de Development) e HSTS. (`ForwardedHeaders` já está configurado fora de Development; no `deploy/k8s` o Service da API só pode ser alcançado pelo Ingress — e o Ingress precisa mandar `X-Forwarded-Proto` —, senão qualquer cliente falsifica esquema e IP no log.) (e) `Keycloak:Authority` e `ConnectionStrings:Redis` com TLS (`ssl=true`) nos ambientes publicados — pedido de infra; hoje os tokens ficam em texto no Redis, protegidos só pela ACL. (f) Conferir `aud`/`iss` do `id_token` além do `nonce`. (g) `dotnet list package --vulnerable` no CI.
+- [ ] **Status de erro do provedor fora do ar.** `auth.provedor-indisponivel` (Keycloak indisponível no refresh) sai como `Failure` → 422 porque o mapa de status da ADR-0003 não tem 502/503. Avaliar um tipo de erro próprio quando o front tratar retry.
 - [ ] **Endpoint de permissões para o front.** `GET /api/fluxo-deploy/{id}/permissoes` devolvendo o que o usuário pode fazer, calculado pelas mesmas regras do backend (papéis da Aplicação + MOR).
 
 ### Mensageria e eventos
-- [ ] **Outbox e inbox com tabela — fase 1, junto da M0** (ADR-0010: as Ações do bot dependem dele). Hoje é em memória (`UseInMemoryInboxOutbox`), então reiniciar o processo perde o controle. Com EF Core 10 o `MassTransit.EntityFrameworkCore` passa a ser compatível; avaliar com PostgreSQL.
+- [x] **Outbox e inbox com tabela** (ADR-0010) — feito na M0 (`MassTransit.EntityFrameworkCore` + Postgres), coberto por `Esteira.Integration.Tests`.
 - [ ] **Integration events.** `IIntegrationEvent` gerado pelos domain event handlers e publicado pelo outbox após o commit (ex.: fluxo concluído → avisar outros sistemas).
 - [ ] **Retry** nos consumers que só gravam no banco (processamento de relatórios).
 - [ ] **Exchanges por ambiente.** Hoje é sufixo `-hml`/`-prd` no nome. Avaliar virtual host por ambiente.
@@ -76,17 +78,25 @@ O código atual ainda é o modelo herdado do sistema legado. Entra pelas fatias 
 - [ ] **Cache centralizado.** Já existe `ICacheService` + `CacheBehavior`; candidatos: papéis por Aplicação, política de severidade, JWKS do GitLab.
 
 ### Qualidade
-- [ ] **Testes de integração.** Os testes atuais são de Domain e Application com mocks. Criar testes da camada Data e da API contra PostgreSQL real (ex.: Testcontainers).
-- [ ] **View de resumo** (`VW_FLUXO_DEPLOY_RESUMO`) — refazer sobre o modelo novo (Entrega/Fluxo/Candidata).
+- [x] **Testes de integração** — `Esteira.Integration.Tests` (Testcontainers) criado na M0; cada fatia nova acrescenta os seus.
+- [ ] **Resumo para listagens** — a view `VW_FLUXO_DEPLOY_RESUMO` saiu na M0; a listagem de Entregas/Fluxos (E1) decide se volta como view ou projeção.
 
 ## Como rodar
+
+Pré-requisito: infra compartilhada no ar e os segredos da casa `esteira` no user-secrets da API (uma vez, e de novo depois de cada `apply` que troque segredo):
+
+```powershell
+node <ai-infra>\configs\infra\infra-config.mjs secrets esteira --csproj=src\Esteira.Api\Esteira.Api.csproj
+```
 
 ```bash
 dotnet build Esteira.slnx
 dotnet test --solution Esteira.slnx
 dotnet tool restore
-ESTEIRA_CONNECTION="Host=localhost;Database=esteira;Username=postgres;Password=postgres" \
-  dotnet ef database update --project src/Esteira.Data --startup-project src/Esteira.Api --context EsteiraContext
+dotnet ef database update --project src/Esteira.Data --startup-project src/Esteira.Api --context EsteiraContext   # usa ConnectionStrings:PostgresMigrations (esteira_owner)
+dotnet run --project src/Esteira.Api --launch-profile http   # http://localhost:5105 — /health, /metrics, /scalar/v1
 ```
 
-Configurações em `src/Esteira.Api/appsettings.json`: `ConnectionStrings:EsteiraConnection`, `Autenticacao`, `RabbitMQ`, `GerenciadorTarefas`, `Cors`. Documentação da API em `/scalar/v1` no ambiente Development.
+**Login em dev (sessão BFF).** Precisa do Redis e do Keycloak da infra no ar e do `Keycloak:ClientSecret` no user-secrets. O `redirect_uri` é `http://localhost:4200/api/v1/auth/callback` (`Autenticacao:UrlPublica`), então a API é acessada pela origem do front: `ng serve` em `esteira-frontend` (o `proxy.conf.json` manda `/api` para `localhost:5105`). Abra `http://localhost:4200/api/v1/auth/login`, entre com o usuário `dev` (senha em `PROJECT_ESTEIRA_KEYCLOAK_DEV_PASSWORD`, no env da infra) e confira `http://localhost:4200/api/v1/usuarios/me` (`perfis` com `mor`). Logout: `/api/v1/auth/logout`. Suba a API pelo perfil `http` (porta 5105): em Development a API **não** redireciona para HTTPS, porque o login do BFF precisa ficar na origem `4200` do proxy — um redirect para a `7239` do perfil `https` leva o navegador para outra origem e o callback termina em 401. Fora de Development o redirect vale e a API confia nos `X-Forwarded-For`/`X-Forwarded-Proto` do Ingress.
+
+Configuração: só as chaves do contrato (`../docs/agents/infra-local.md`: `ConnectionStrings:Postgres`/`PostgresMigrations`, `RabbitMQ:*`, `Keycloak:*`, `OTEL_*`), vindas do user-secrets em dev. No `appsettings.json` fica só o que é do projeto: `Serilog`, `Autenticacao` (claims, HTTPS, `UrlPublica`), `RabbitMQ:Ambiente`, `Cors`. Sem chave obrigatória, a API não sobe e diz qual falta.

@@ -1,30 +1,57 @@
 using Esteira.Api.Autenticacao;
+using Esteira.Api.Erros;
 using Esteira.Api.Middleware;
 using Esteira.Api.Paginacao;
 using Esteira.Application.Interfaces.Usuario;
-using Esteira.Application.Jobs;
-using Esteira.Application.Settings;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
-using Esteira.Messaging;
-using Esteira.Messaging.Configuracao;
-using MassTransit;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Esteira.IoC.Configuracoes;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
-using Quartz;
+using Prometheus;
 using Scalar.AspNetCore;
 using Serilog;
+using Serilog.Sinks.OpenTelemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseSerilog((context, services, configuration) => configuration
-    .ReadFrom.Configuration(context.Configuration)
-    .ReadFrom.Services(services)
-    .Enrich.FromLogContext());
+// O logger fica no host, não no Log.Logger estático: cada host (inclusive os de teste, em paralelo) escreve nos próprios sinks.
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext();
+
+    // Rodando fora do Docker, o log vai pro Loki via OTLP (docs/agents/observabilidade-backup.md).
+    var otlpEndpoint = context.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+    if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+    {
+        configuration.WriteTo.OpenTelemetry(otlp =>
+        {
+            otlp.Endpoint = otlpEndpoint;
+            otlp.Protocol = context.Configuration["OTEL_EXPORTER_OTLP_PROTOCOL"] == "grpc"
+                ? OtlpProtocol.Grpc
+                : OtlpProtocol.HttpProtobuf;
+            otlp.ResourceAttributes = Configuracao.AtributosOtel(context.Configuration["OTEL_RESOURCE_ATTRIBUTES"]);
+            otlp.ResourceAttributes["service.name"] = "esteira-api";
+        });
+    }
+}, preserveStaticLogger: true);
 
 builder.Services
-    .AddControllers(options => options.Filters.Add<PaginacaoResultFilter>())
+    .AddControllers(options =>
+    {
+        options.Filters.Add<ResultadoFilter>();
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Corpo ilegível ou com tipo errado sai no mesmo formato de erro da ADR-0003.
+        options.InvalidModelStateResponseFactory = RequisicaoInvalida.Resposta;
+    })
     .AddNewtonsoftJson(opt =>
     {
         opt.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
@@ -34,62 +61,56 @@ builder.Services
         };
     });
 
-var connectionString = builder.Configuration.GetConnectionString("EsteiraConnection");
+// Migrations (dotnet ef) usam o owner do banco; a API em runtime, só a role de aplicação.
+var connectionString = Configuracao.Obrigatoria(
+    builder.Configuration,
+    EF.IsDesignTime ? "ConnectionStrings:PostgresMigrations" : "ConnectionStrings:Postgres");
 
-builder.Services.AddDbContext<EsteiraContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddDbContext<EsteiraReadContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<EsteiraContext>(options => options.UsarPostgres(connectionString));
+builder.Services.AddDbContext<EsteiraReadContext>(options => options.UsarPostgres(connectionString));
+
+// Exception não tratada: Problem Details 500 com traceId, sem detalhe técnico (ADR-0003).
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ErroInesperadoHandler>();
 
 builder.Services.AddOpenApi();
 
-builder.Services.Configure<GerenciadorTarefasSettings>(builder.Configuration.GetSection(GerenciadorTarefasSettings.Secao));
-
-var autenticacao = builder.Configuration.GetSection(AutenticacaoSettings.Secao).Get<AutenticacaoSettings>() ?? new AutenticacaoSettings();
+var keycloakAuthority = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:Authority");
 builder.Services.Configure<AutenticacaoSettings>(builder.Configuration.GetSection(AutenticacaoSettings.Secao));
+Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientId");
+Configuracao.Obrigatoria(builder.Configuration, "Keycloak:ClientSecret");
+Configuracao.Obrigatoria(builder.Configuration, "Autenticacao:UrlPublica");
+// Timeout bem abaixo do TTL da trava de refresh (10 s): a troca nunca sobrevive à própria trava.
+builder.Services.AddHttpClient<IProvedorOidc, ProvedorOidcKeycloak>(cliente => cliente.Timeout = TimeSpan.FromSeconds(5));
+builder.Services.AddScoped<FluxoLogin>();
+builder.Services.AddScoped<FluxoSessao>();
+// Sessão BFF (ADR-0004): cookie opaco -> sessão no Redis. Sem JWT Bearer.
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = autenticacao.Authority;
-        options.Audience = autenticacao.Audience;
-        options.RequireHttpsMetadata = autenticacao.RequerHttps;
-        options.MapInboundClaims = false;
-    });
-builder.Services.AddAuthorization();
+    .AddAuthentication(SessaoAuthenticationHandler.Esquema)
+    .AddScheme<AuthenticationSchemeOptions, SessaoAuthenticationHandler>(SessaoAuthenticationHandler.Esquema, null);
+// Sessão exigida por padrão em todo endpoint; quem não quer declara [AllowAnonymous].
+builder.Services.AddAuthorization(options =>
+    options.FallbackPolicy = new AuthorizationPolicyBuilder(SessaoAuthenticationHandler.Esquema).RequireAuthenticatedUser().Build());
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
-var ambienteMensageria = AmbienteMensageria.Resolver(
-    builder.Configuration.GetValue<string>("RabbitMQ:Ambiente"),
-    builder.Environment.IsProduction());
-
-builder.Services.AddInMemoryInboxOutbox();
-
-builder.Services.AddMassTransit(x =>
-{
-    x.AddConsumer<CriarAnaliseArtefatosSastConsumer>();
-    x.AddConsumer<CriarAnaliseArtefatosDastConsumer>();
-    x.AddConsumer<AtualizarAnaliseDastConsumer>();
-
-    x.SetEndpointNameFormatter(new SufixoAmbienteEndpointNameFormatter(KebabCaseEndpointNameFormatter.Instance, ambienteMensageria));
-    x.AddConfigureEndpointsCallback((context, nome, endpoint) => endpoint.UseInMemoryInboxOutbox(context));
-
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        cfg.MessageTopology.SetEntityNameFormatter(new SufixoAmbienteEntityNameFormatter(cfg.MessageTopology.EntityNameFormatter, ambienteMensageria));
-
-        cfg.Host(
-            builder.Configuration.GetValue("RabbitMQ:Host", "rabbitmq"),
-            builder.Configuration.GetValue("RabbitMQ:VirtualHost", "/"),
-            h =>
-            {
-                h.Username(builder.Configuration.GetValue<string>("RabbitMQ:UserName"));
-                h.Password(builder.Configuration.GetValue<string>("RabbitMQ:Password"));
-            });
-        cfg.ConfigureEndpoints(context);
-    });
-});
-
+builder.Services.AddSessaoRedis(builder.Configuration);
+builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddDependencyInjection();
+
+// RabbitMQ entra pelo health check que o próprio MassTransit registra.
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<EsteiraContext>("postgres")
+    .AddUrlGroup(new Uri($"{keycloakAuthority.TrimEnd('/')}/.well-known/openid-configuration"), "keycloak");
+
+// O Ingress é o único que alcança o Service da API no cluster, então os X-Forwarded-* dele são confiáveis; por padrão o
+// ASP.NET só aceitaria proxy em loopback e ignoraria o cabeçalho. Só esquema e IP: o host público vem de Autenticacao:UrlPublica.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddCors(options =>
 {
@@ -98,38 +119,39 @@ builder.Services.AddCors(options =>
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()
-        .WithExposedHeaders(PaginacaoHttpExtensions.Header));
+        .WithExposedHeaders(HeadersPaginacao.Resposta));
 });
-
-builder.Services.AddQuartz(q =>
-{
-    var jobKey = new JobKey(nameof(AnaliseDastJob));
-    q.AddJob<AnaliseDastJob>(opts => opts.WithIdentity(jobKey));
-    q.AddTrigger(opts => opts
-        .ForJob(jobKey)
-        .WithIdentity($"{nameof(AnaliseDastJob)}-trigger")
-        .WithCronSchedule("0 0/15 * * * ?"));
-});
-builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 var app = builder.Build();
 
+// Atrás do Ingress o TLS termina no proxy: sem isto o pod enxerga sempre http e o IP do Ingress. Tem de ser o primeiro
+// da pipeline (antes do log e do redirect para HTTPS).
+if (!app.Environment.IsDevelopment())
+    app.UseForwardedHeaders();
+
 app.UseMiddleware<TempoRequisicaoMiddleware>();
 app.UseSerilogRequestLogging();
+app.UseHttpMetrics();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("Frontend");
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
-app.UseHttpsRedirection();
+// Em Development a API fica atrás do proxy do ng serve (mesma origem do BFF, ADR-0004): redirecionar para HTTPS
+// jogaria o login para outra origem (perfil "https" do launchSettings, porta 7239). Fora dele vale o redirect.
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
+
+app.UseExceptionHandler();
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<ExceptionMiddleware>();
 
 app.MapControllers();
+app.MapHealthChecks("/health").AllowAnonymous();
+app.MapMetrics().AllowAnonymous();
 
 await app.RunAsync();
