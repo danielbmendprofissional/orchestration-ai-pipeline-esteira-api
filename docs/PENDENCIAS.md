@@ -4,7 +4,7 @@ Documento de contexto para continuar a evolução do projeto. Atualizado em 2026
 
 ## Contexto do projeto
 
-- **O que é:** API que **decide se cada deploy pode seguir** e **orquestra as promoções no GitLab**: todo Fluxo de deploy começa aqui, a pipeline do template-ci chama a Esteira (`esteira-abrir` · `esteira-gate` · `esteira-resultado`), as aprovações humanas vivem aqui e um bot executa tag/merge/play no GitLab. Vocabulário: `CONTEXT-MAP.md` (Aplicação, Projeto, Entrega, Fluxo, Candidata, Ambiente, Destino, Deploy, Análise, Achado, Exceção…).
+- **O que é:** API que **decide se cada deploy pode seguir** e **orquestra as promoções no GitLab**: todo Fluxo de deploy começa aqui, a pipeline do template-ci chama a Esteira (`esteira-abrir` · `esteira-gate` · `esteira-resultado`), as aprovações humanas vivem aqui e um bot executa tag/merge/play no GitLab. Vocabulário: `CONTEXT-MAP.md` (Aplicação, Projeto, Fatia, Entrega, Fluxo, Artefato, Ambiente, Destino, Deploy, Análise, Achado, Exceção, Liberação…).
 - **Nome:** o projeto se chama **Esteira**. `FluxoDeploy` é apenas a entidade (agregado) do domínio.
 - **Arquitetura:** DDD + CQRS.
   - Contexto de escrita `EsteiraContext` e de leitura `EsteiraReadContext` (sem rastreamento) sobre o mesmo schema.
@@ -25,6 +25,8 @@ Documento de contexto para continuar a evolução do projeto. Atualizado em 2026
 
 A fatia M0 (2026-10-22) removeu todo o modelo herdado do sistema legado e deixou o esqueleto; o que está em "Muda" e "Entra" nasce nas fatias de `specs/README.md`.
 
+> **Atualizado em 2026-11-20 para o modelo trunk-based (ADRs 0018 a 0025).** Candidata (`-rcN`), branches `dev`/`qa`/`hml`, AET-1/AET-2, sincronização para baixo e promoção por MR de estágio **não existem mais**. O vocabulário vigente é Fatia → Entrega → Fluxo → Liberação, com Artefato por SHA e versão `X.Y.Z`; as fatias que implementam cada item estão no mapa (P1, P2, E1 a E8, X1, X2, O1).
+
 ### Sai
 - [x] Etapas **GMUD**, **BD** (CRS de banco), **VERSAO** e a **AET única** — `FluxoDeployGmudEntity`, `FluxoDeployBdCrsEntity`, `FluxoDeployVersaoTarefasEntity`, os `Etapa*Service`/`*Rules` correspondentes, controllers `FluxoDeployBancoDadosCrs*`/`Vinculos` e o que for só deles.
 - [x] **DAST próprio** — `IScannerDast`, `ScannerDastNaoConfigurado`, `AnaliseDastJob`, consumers/mensagens DAST, índice "uma análise por URL". Quem roda o ZAP é o template; o resultado chega pelo `esteira-resultado`.
@@ -37,20 +39,20 @@ A fatia M0 (2026-10-22) removeu todo o modelo herdado do sistema legado e deixou
 
 ### Muda
 - [ ] **Sistema → Aplicação.** Aplicação aponta para um grupo do GitLab e tem Projetos (um repositório cada, com stack). `ConfiguracaoSistema` vira a **política de severidade da Aplicação por Ambiente** (`LimitesSeveridadeValueObject` por Ambiente; padrão: dev avisa, qa/hml/prd bloqueiam CRITICAL+HIGH).
-- [ ] **Fluxo = Projeto + versão** (`MAJOR.MINOR`, minor entra no fluxo normal), dentro de uma **Entrega** (Fluxos parceiros com as mesmas issues e dependência declarada). Tipos normal e hotfix.
-- [ ] **Etapas:** normal `ABER → AET-1 → DEV → QA → HML → AAN → AET-2 → PRD`; hotfix `ABER → AET-2 → PRD`. `EtapaEnum` hoje declara HML antes de QA — corrigir.
-- [ ] **Deploy associado por (projeto, versão core da tag)**, com o Ambiente vindo do `PIPELINE_ENV` do template; guarda tag e branch. Um Deploy por **Destino**.
-- [ ] **Análise** sai do Deploy: **da Candidata** (código/imagem, roda uma vez) ou **do Deploy** (smoke, DAST, agente de qa). **Artefato → Achado**.
-- [ ] **Concorrência:** um Fluxo por Ambiente de Projeto; chegada em PRD na ordem de versão; candidata precisa descender da última final publicada e da candidata atual de cada fluxo mais antigo aberto (API compare do GitLab).
-- [ ] **Aprovações:** AET-1, AAN e AET-2 por Entrega; aprovação da candidata por Fluxo (primeiro Ambiente onde a candidata roda); Publicar por Entrega. Autoaprovação do MOR marcada, com motivo.
-- [ ] **AAN:** aprovação issue por issue na Esteira (o GitLab só fornece a lista); "nova versão das tarefas apaga aprovações de negócio" passa a ser "mudança de escopo da Entrega reinicia AAN e AET-2".
+- [ ] **Entrega por seleção de Fatias** (ADR-0022): uma **Entrega** agrupa 1 ou mais **Fluxos**, um por Projeto tocado, aberta por um humano a partir das Fatias Prontas para Entrega. Tipos normal e hotfix; o tipo da mudança (minor ou major) é declarado na Abertura e a versão `X.Y.Z` só nasce na confirmação em produção (ADR-0023). Fatias: E1, E1b.
+- [ ] **Etapas:** normal `Abertura → QA → HML → PRD → Liberação`; hotfix é uma Entrega de tipo hotfix com o Atalho. Não há `DEV`, AET-1, AET-2 nem AAN antes de produção (ADR-0023). Fatias: E1b, E3.
+- [ ] **Deploy** de um Artefato (imagem por SHA, gerada pela pipeline do Fluxo) num **Destino** de um Ambiente (`qa`, `hml`, produção); um Deploy por Destino. Fatia: E4.
+- [ ] **Análise** sai do Deploy: **do Artefato** (código/imagem, roda uma vez) ou **do Deploy** (smoke, DAST, agente de qa). **Achado**. Fatia: E2.
+- [ ] **Concorrência/ocupação:** `qa` sem fila (o Artefato novo supera o anterior), `hml` e produção um Fluxo por vez por Projeto; Projeto "em rollback" não recebe nada até a correção (ADR-0021). Fatia: E4.
+- [ ] **Aprovações:** qa e hml pelo aprovador técnico, produção pelo Publicador, Liberação pelo aprovador de negócio; autoaprovação do MOR marcada, com motivo (ADR-0023). Fatias: E3, E7.
+- [ ] **Painel de Fatias** (ADR-0024): leitor do contrato de leitura (mapa, spec, issues, bloco de execução), estados da Fatia, review e aprovação da MR. Fatias: P1, P2.
+- [ ] **Flags e Liberação** (ADR-0019, 0025): estado do flag por Ambiente na Esteira, job do GitLab, `rollout restart`, detecção de divergência. Fatia: E7.
 
 ### Entra
-- [ ] **Integração com a pipeline:** `esteira-abrir` (valida Fluxo/Candidata/Ambiente, devolve configuração e Destinos), `esteira-gate` (aplica política + Exceções, responde OK/erro), `esteira-resultado` (202; processado por fila). Autenticação por `id_tokens` do GitLab (JWKS). Fail-closed.
-- [ ] **Bot do GitLab** (um por grupo, token só em secret): cortar candidata, abrir/mergear MR de promoção (`release/<tag>` só quando a origem andou além da tag), sincronizar para baixo, play do job de produção, rollback. Webhook de pipeline para status ao vivo.
-- [ ] **Sincronização** automática para baixo depois de publicação, hotfix e correção nascida em qa/hml; conflito vira MR e marca o estágio "dessincronizado".
-- [ ] **Cancelamento** com destino do código (reverter/absorver) e, numa Entrega, cancelar tudo ou desvincular.
-- [ ] **Rollback** de produção (imagem), em ordem inversa à dependência; Projeto "em rollback" até a correção para frente; marca "migrations retrocompatíveis" na AET-2 (sem ela, só MOR).
+- [ ] **Integração com a pipeline:** `esteira-abrir` (valida Entrega aberta/Fluxo/Ambiente, devolve configuração, Destinos e flags; contrato v2), `esteira-gate` (aplica política + Exceções, responde OK/erro), `esteira-resultado` (202; processado por fila). Autenticação por `id_tokens` do GitLab (JWKS). Fail-closed.
+- [ ] **Bot do GitLab** (um por grupo, token só em secret): comentar, fechar, reabrir e mergear a MR da Fatia, disparar os processos da pipeline (`fluxo`, `promocao`, `flag`, `rotulo`, `preview`), aplicar a versão `X.Y.Z`, play do job de produção. Webhook de pipeline para status ao vivo. A `main` só aceita merge do bot (ADR-0021, 0025). Fatias: P2, E4, E7.
+- [ ] **Cancelamento** com destino do código (reverter/absorver) e, numa Entrega, cancelar tudo ou desvincular. Fatia: E6.
+- [ ] **Rollback** de produção por SHA, só no Ambiente afetado e sem migrations, em ordem inversa à dependência; Projeto "em rollback" até a correção para frente; migração `contract` bloqueia ou avisa (ADR-0025). Fatia: E6.
 - [ ] **Exceção** de achado (motivo, pedinte, aprovador, validade) no lugar do `.security-ignore`.
 - [ ] **Papéis por Aplicação** (Membro, Aprovador técnico, Aprovador de negócio, Publicador) + **MOR** global (Keycloak). Substitui `AprovadorTecnicoEntity`/equipe e o "perfil de gestão".
 - [ ] **Notas de entrega** (oasdiff do OpenAPI, diff de rotas Angular, screenshots do agente de qa, issues; texto por agente).
