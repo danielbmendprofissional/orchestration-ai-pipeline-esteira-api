@@ -1,6 +1,6 @@
 # esteira-api
 
-API da Esteira (.NET 10, DDD + CQRS). Vocabulário do domínio: `../CONTEXT-MAP.md` — nomes de classe, tabela e rota usam esses termos (Aplicação, Projeto, Entrega, Fluxo, Candidata, Ambiente, Destino, Deploy, Análise, Achado, Exceção). Decisões: `../docs/adr/`. Estado e backlog: `docs/PENDENCIAS.md`. O código é um esqueleto (fatia M0): infraestrutura transversal sem agregado de negócio; os agregados nascem nas fatias A1 e E1, test-first.
+API da Esteira (.NET 10, DDD + CQRS). Vocabulário do domínio: `../CONTEXT-MAP.md` — nomes de classe, tabela e rota usam esses termos (Aplicação, Projeto, Fatia, Entrega, Fluxo, Artefato, Ambiente, Destino, Deploy, Análise, Achado, Exceção, Liberação). Decisões: `../docs/adr/`. Estado e backlog: `docs/PENDENCIAS.md`. O código é um esqueleto (fatia M0): infraestrutura transversal sem agregado de negócio; os agregados nascem nas fatias A1 e E1, test-first.
 
 ## Camadas
 
