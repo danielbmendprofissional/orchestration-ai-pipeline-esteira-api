@@ -1,4 +1,5 @@
 using Esteira.Api.Autenticacao;
+using Esteira.Api.Erros;
 using Esteira.Application.Sessao;
 using Esteira.Domain.Common.Resultados;
 using Microsoft.AspNetCore.Authorization;
@@ -38,6 +39,9 @@ namespace Esteira.Api.Controllers
         // Anônimo de propósito: o refresh existe justamente para quando o access token já venceu e a sessão
         // autenticada devolveria 401. Quem vale é o cookie, conferido no Redis pelo fluxo.
         [HttpPost("refresh")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
         public async Task<Result> Refresh()
         {
             var resultado = await fluxoSessao.RenovarAsync(SessaoId);
