@@ -82,12 +82,7 @@ namespace Esteira.Data.Aplicacoes
                     ambientes[p.Id],
                     destinos[p.Id],
                     dependencias[p.Id].OrderBy(d => nomes[d.DependeDeProjetoId], StringComparer.Ordinal).Select(d => publicIds[d.DependeDeProjetoId]))).ToList(),
-                Papeis = papeis.Select(p => new PapelResumoDto
-                {
-                    Id = p.PublicId,
-                    Usuario = p.Usuario,
-                    Papel = EnumKebab.Texto(p.Papel)
-                }).ToList()
+                Papeis = await PapelQuery.ComPessoasAsync(contexto, papeis, cancellationToken)
             };
         }
 

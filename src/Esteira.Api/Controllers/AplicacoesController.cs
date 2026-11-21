@@ -6,7 +6,9 @@ using Esteira.Application.Aplicacoes.Commands.Alterar;
 using Esteira.Application.Aplicacoes.Commands.AlterarPolitica;
 using Esteira.Application.Aplicacoes.Commands.CadastrarProjeto;
 using Esteira.Application.Aplicacoes.Commands.Criar;
+using Esteira.Application.Aplicacoes.Commands.Papeis;
 using Esteira.Application.Aplicacoes.Queries.Listar;
+using Esteira.Application.Aplicacoes.Queries.ListarPapeis;
 using Esteira.Application.Aplicacoes.Queries.ListarProjetosGitLab;
 using Esteira.Application.Aplicacoes.Queries.Obter;
 using Esteira.Application.Common.Paginacao;
@@ -28,6 +30,8 @@ namespace Esteira.Api.Controllers
         public sealed record AlterarAplicacaoRequest(string? Nome, string? Sigla, bool? Ativa);
 
         public sealed record CadastrarProjetoRequest(long? ProjetoGitLabId, string? Stack);
+
+        public sealed record VincularPapelRequest(string? Usuario, string? Papel);
 
         public sealed record AlterarPoliticaRequest(int? Critica, int? Alta, int? Media, int? Baixa, string? Modo);
 
@@ -105,6 +109,39 @@ namespace Esteira.Api.Controllers
                 ? Created($"/api/v1/projetos/{resultado.Value.Id}", resultado.Value)
                 : new ObjectResult(resultado);
         }
+
+        // Papéis (A1.5): leitura com papel na Aplicação ou MOR; vincular/desvincular só MOR. Lista pequena, sem paginação.
+        [HttpGet("{id:guid}/papeis")]
+        [ProducesResponseType<IReadOnlyList<PapelResumoDto>>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        public async Task<Result<IReadOnlyList<PapelResumoDto>>> ListarPapeis(Guid id, CancellationToken cancellationToken)
+            => await mediator.Send(new ListarPapeisQuery(id), cancellationToken);
+
+        [HttpPost("{id:guid}/papeis")]
+        [ProducesResponseType<PapelResumoDto>(StatusCodes.Status201Created)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> VincularPapel(Guid id, [FromBody] VincularPapelRequest corpo, CancellationToken cancellationToken)
+        {
+            var resultado = await mediator.Send(new VincularPapelCommand(id, corpo.Usuario ?? string.Empty, corpo.Papel ?? string.Empty), cancellationToken);
+
+            return resultado.IsSuccess
+                ? Created($"/api/v1/aplicacoes/{id}/papeis", resultado.Value)
+                : new ObjectResult(resultado);
+        }
+
+        [HttpDelete("{id:guid}/papeis/{papelId:guid}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        public async Task<Result> DesvincularPapel(Guid id, Guid papelId, CancellationToken cancellationToken)
+            => await mediator.Send(new DesvincularPapelCommand(id, papelId), cancellationToken);
 
         [HttpPut("{id:guid}/politicas/{ambiente}")]
         [ProducesResponseType<PoliticaDto>(StatusCodes.Status200OK)]

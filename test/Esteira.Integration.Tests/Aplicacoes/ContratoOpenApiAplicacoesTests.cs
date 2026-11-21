@@ -26,6 +26,11 @@ namespace Esteira.Integration.Tests.Aplicacoes
         [InlineData("/api/v1/projetos/{id}/ambientes/{ambiente}/destinos", "post", "201", "409")]
         [InlineData("/api/v1/projetos/{id}/ambientes/{ambiente}/destinos/{destinoId}", "put", "200", "404")]
         [InlineData("/api/v1/projetos/{id}/ambientes/{ambiente}/destinos/{destinoId}", "delete", "204", "404")]
+        [InlineData("/api/v1/pessoas", "get", "200", "403")]
+        [InlineData("/api/v1/aplicacoes/{id}/papeis", "get", "200", "404")]
+        [InlineData("/api/v1/aplicacoes/{id}/papeis", "post", "201", "409")]
+        [InlineData("/api/v1/aplicacoes/{id}/papeis", "post", "201", "422")]
+        [InlineData("/api/v1/aplicacoes/{id}/papeis/{papelId}", "delete", "204", "404")]
         public async Task Rotas(string rota, string metodo, string sucesso, string erro)
         {
             var doc = await LerAsync();
@@ -35,6 +40,19 @@ namespace Esteira.Integration.Tests.Aplicacoes
             respostas.ContainsKey(sucesso).Should().BeTrue();
             respostas.ContainsKey(erro).Should().BeTrue();
             respostas[erro]!["content"]!["application/json"]!["schema"]!["$ref"]!.GetValue<string>().Should().Be("#/components/schemas/RespostaDeErro");
+        }
+
+        [Fact, DisplayName("Deve descrever no OpenAPI o papel (com nome e e-mail da pessoa) e o item da busca de pessoas só com sub, nome e e-mail")]
+        public async Task SchemasDePapelEPessoa()
+        {
+            var doc = await LerAsync();
+
+            var schemas = doc["components"]!["schemas"]!.AsObject();
+
+            var papel = schemas["PapelResumoDto"]!["properties"]!.AsObject();
+            foreach (var campo in new[] { "id", "usuario", "nome", "email", "papel" })
+                papel.ContainsKey(campo).Should().BeTrue();
+            schemas["PessoaListaDto"]!["properties"]!.AsObject().Select(p => p.Key).Should().BeEquivalentTo("sub", "nome", "email");
         }
 
         [Fact, DisplayName("Deve descrever no OpenAPI o Projeto completo (ambientes com destinos e dependeDe) e o item de projeto do GitLab")]

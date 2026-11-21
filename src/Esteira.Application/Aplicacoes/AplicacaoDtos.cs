@@ -68,7 +68,18 @@ namespace Esteira.Application.Aplicacoes
     {
         public Guid Id { get; set; }
         public string Usuario { get; set; } = default!;
+        // Da Pessoa, quando ela existir; ausentes (null) se o sub não está mais em Pessoa.
+        public string? Nome { get; set; }
+        public string? Email { get; set; }
         public string Papel { get; set; } = default!;
+    }
+
+    // Item da busca de pessoas (GET /pessoas). O identificador na API é o `sub` (o que PapelAplicacao.Usuario guarda); o Id long nunca sai.
+    public sealed class PessoaListaDto
+    {
+        public string Sub { get; set; } = default!;
+        public string Nome { get; set; } = default!;
+        public string Email { get; set; } = default!;
     }
 
     public sealed class AplicacaoDetalheDto
