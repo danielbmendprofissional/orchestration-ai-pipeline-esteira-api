@@ -1,6 +1,8 @@
 ﻿using FluentValidation;
 using Esteira.Application.Behavios;
 using Esteira.Application.Common.Events;
+using Esteira.Application.Aplicacoes;
+using Esteira.Application.Interfaces.Aplicacoes;
 using Esteira.Application.Interfaces.Auditoria;
 using Esteira.Data.Aplicacoes;
 using Esteira.Application.Interfaces.Cache;
@@ -24,6 +26,10 @@ namespace Esteira.IoC
             services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
             services.TryAddSingleton(TimeProvider.System);
             services.AddScoped<IAuditoria, AuditoriaEf>();
+            services.AddScoped<IAcessoAplicacaoQuery, AcessoAplicacaoQuery>();
+            services.AddScoped<IAutorizacaoAplicacao, AutorizacaoAplicacao>();
+            services.AddScoped<IPessoaRepositorio, PessoaRepositorio>();
+            services.AddScoped<IRegistradorDePessoa, RegistradorDePessoa>();
 
             //Feature
             var application = typeof(ValidationBehavior<,>).Assembly;

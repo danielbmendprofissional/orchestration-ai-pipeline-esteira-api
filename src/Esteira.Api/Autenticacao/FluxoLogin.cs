@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Esteira.Application.Interfaces.Aplicacoes;
 using Esteira.Application.Interfaces.Sessao;
 using Esteira.Application.Sessao;
 using Microsoft.AspNetCore.WebUtilities;
@@ -18,6 +19,7 @@ namespace Esteira.Api.Autenticacao
         IProvedorOidc provedor,
         IOptions<AutenticacaoSettings> settings,
         IConfiguration configuracao,
+        IRegistradorDePessoa pessoas,
         ILogger<FluxoLogin> log)
     {
         private static readonly TimeSpan DuracaoDoLogin = TimeSpan.FromMinutes(5);
@@ -129,8 +131,28 @@ namespace Esteira.Api.Autenticacao
                 DateTimeOffset.UtcNow.AddSeconds(tokens.ExpiresIn));
 
             await sessoes.CriarAsync(sessao, duracao);
+            await RegistrarPessoaAsync(sub, tokens);
 
             return new LoginConcluido(sessao.Id, contexto.ReturnUrl);
+        }
+
+        // A1: quem entrou fica em Pessoa (de onde o MOR escolhe quem vincular). Falha aqui não derruba o login:
+        // o log leva só o tipo da exceção, nunca token, nome ou e-mail.
+        private async Task RegistrarPessoaAsync(string sub, TokensOidc tokens)
+        {
+            try
+            {
+                var acesso = JwtLeitor.LerPayload(tokens.AccessToken);
+                var identidade = JwtLeitor.LerPayload(tokens.IdToken);
+                string? Texto(string nome) => JwtLeitor.Texto(acesso, nome) ?? JwtLeitor.Texto(identidade, nome);
+
+                var nome = Texto(settings.Value.ClaimNome) ?? Texto(settings.Value.ClaimUsuario) ?? string.Empty;
+                await pessoas.RegistrarAsync(sub, nome, Texto("email") ?? string.Empty);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Não foi possível registrar a Pessoa no login ({TipoDoErro}); o login segue", ex.GetType().Name);
+            }
         }
 
         private static bool MesmoState(string state, string? doNavegador)
