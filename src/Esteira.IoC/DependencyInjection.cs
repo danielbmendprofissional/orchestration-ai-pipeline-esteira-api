@@ -1,6 +1,8 @@
 ﻿using FluentValidation;
 using Esteira.Application.Behavios;
 using Esteira.Application.Common.Events;
+using Esteira.Application.Interfaces.Auditoria;
+using Esteira.Data.Aplicacoes;
 using Esteira.Application.Interfaces.Cache;
 using Esteira.Application.Interfaces.UnitOfWork;
 using Esteira.Data.Common.Events;
@@ -8,6 +10,7 @@ using Esteira.Data.Common.Persistence;
 using Esteira.Infra.Cache;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Esteira.IoC
 {
@@ -19,6 +22,8 @@ namespace Esteira.IoC
             services.AddSingleton<ICacheService, MemoryCacheService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+            services.TryAddSingleton(TimeProvider.System);
+            services.AddScoped<IAuditoria, AuditoriaEf>();
 
             //Feature
             var application = typeof(ValidationBehavior<,>).Assembly;

@@ -14,6 +14,11 @@ namespace Esteira.Data.Common.Persistence
         {
             modelBuilder.HasDefaultSchema(EsteiraPostgres.Schema);
 
+            // Cadastro da A1: as configurations de Write/ valem nos dois contextos (leitura usa as mesmas tabelas).
+            modelBuilder.ApplyConfigurationsFromAssembly(
+                typeof(EsteiraContext).Assembly,
+                t => t.Namespace is not null && t.Namespace.EndsWith(".Write", StringComparison.Ordinal));
+
             base.OnModelCreating(modelBuilder);
         }
 
