@@ -87,7 +87,10 @@ namespace Esteira.AcL.GitLab
                         projetos.Add(new ProjetoGitLabDto(
                             item.GetProperty("id").GetInt64(),
                             item.GetProperty("path_with_namespace").GetString()!,
-                            item.GetProperty("name").GetString()!));
+                            item.GetProperty("name").GetString()!,
+                            item.TryGetProperty("default_branch", out var branch) && branch.ValueKind == JsonValueKind.String
+                                ? branch.GetString()
+                                : null));
                 }
                 catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
                 {

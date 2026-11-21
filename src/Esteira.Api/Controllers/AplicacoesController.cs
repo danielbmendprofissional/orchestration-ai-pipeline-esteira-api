@@ -4,8 +4,10 @@ using Esteira.Api.Paginacao;
 using Esteira.Application.Aplicacoes;
 using Esteira.Application.Aplicacoes.Commands.Alterar;
 using Esteira.Application.Aplicacoes.Commands.AlterarPolitica;
+using Esteira.Application.Aplicacoes.Commands.CadastrarProjeto;
 using Esteira.Application.Aplicacoes.Commands.Criar;
 using Esteira.Application.Aplicacoes.Queries.Listar;
+using Esteira.Application.Aplicacoes.Queries.ListarProjetosGitLab;
 using Esteira.Application.Aplicacoes.Queries.Obter;
 using Esteira.Application.Common.Paginacao;
 using Esteira.Domain.Common.Resultados;
@@ -24,6 +26,8 @@ namespace Esteira.Api.Controllers
         public sealed record CriarAplicacaoRequest(string? Nome, string? Sigla, string? GrupoGitLab);
 
         public sealed record AlterarAplicacaoRequest(string? Nome, string? Sigla, bool? Ativa);
+
+        public sealed record CadastrarProjetoRequest(long? ProjetoGitLabId, string? Stack);
 
         public sealed record AlterarPoliticaRequest(int? Critica, int? Alta, int? Media, int? Baixa, string? Modo);
 
@@ -75,6 +79,32 @@ namespace Esteira.Api.Controllers
         [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
         public async Task<Result<AplicacaoListaDto>> Alterar(Guid id, [FromBody] AlterarAplicacaoRequest corpo, CancellationToken cancellationToken)
             => await mediator.Send(new AlterarAplicacaoCommand(id, corpo.Nome ?? string.Empty, corpo.Sigla ?? string.Empty, corpo.Ativa), cancellationToken);
+
+        [HttpGet("{id:guid}/gitlab/projetos")]
+        [ProducesResponseType<IReadOnlyList<ProjetoGitLabItemDto>>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<Result<IReadOnlyList<ProjetoGitLabItemDto>>> ListarProjetosGitLab(Guid id, CancellationToken cancellationToken)
+            => await mediator.Send(new ListarProjetosGitLabQuery(id), cancellationToken);
+
+        [HttpPost("{id:guid}/projetos")]
+        [ProducesResponseType<ProjetoResumoDto>(StatusCodes.Status201Created)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> CadastrarProjeto(Guid id, [FromBody] CadastrarProjetoRequest corpo, CancellationToken cancellationToken)
+        {
+            var resultado = await mediator.Send(new CadastrarProjetoCommand(id, corpo.ProjetoGitLabId, corpo.Stack ?? string.Empty), cancellationToken);
+
+            return resultado.IsSuccess
+                ? Created($"/api/v1/projetos/{resultado.Value.Id}", resultado.Value)
+                : new ObjectResult(resultado);
+        }
 
         [HttpPut("{id:guid}/politicas/{ambiente}")]
         [ProducesResponseType<PoliticaDto>(StatusCodes.Status200OK)]

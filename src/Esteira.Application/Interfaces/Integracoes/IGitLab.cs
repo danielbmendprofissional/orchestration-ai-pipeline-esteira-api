@@ -4,7 +4,8 @@ namespace Esteira.Application.Interfaces.Integracoes
 {
     public sealed record GrupoGitLabDto(long Id, string Caminho, string Nome);
 
-    public sealed record ProjetoGitLabDto(long Id, string Caminho, string Nome);
+    // BranchPadrao: `default_branch` do projeto (null em repositório vazio ou quando o GitLab não informa).
+    public sealed record ProjetoGitLabDto(long Id, string Caminho, string Nome, string? BranchPadrao = null);
 
     // Porta de leitura do GitLab (A1; escrita só como Ação do bot, ADR-0010). O token do bot é por grupo
     // (`GitLab:Bots:<caminho-do-grupo>:Token`), por isso toda chamada leva o caminho do grupo raiz da Aplicação.

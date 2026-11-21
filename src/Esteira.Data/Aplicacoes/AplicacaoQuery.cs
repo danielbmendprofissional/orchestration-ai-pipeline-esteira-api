@@ -62,6 +62,13 @@ namespace Esteira.Data.Aplicacoes
             var projetos = await contexto.Set<ProjetoEntity>().Where(p => p.AplicacaoId == id).OrderBy(p => p.Nome).ToListAsync(cancellationToken);
             var papeis = await contexto.Set<PapelAplicacaoEntity>().Where(p => p.AplicacaoId == id).OrderBy(p => p.Id).ToListAsync(cancellationToken);
 
+            var ids = projetos.Select(p => p.Id).ToList();
+            var ambientes = (await contexto.Set<AmbienteProjetoEntity>().Where(a => ids.Contains(a.ProjetoId)).ToListAsync(cancellationToken)).ToLookup(a => a.ProjetoId);
+            var destinos = (await contexto.Set<DestinoEntity>().Where(d => ids.Contains(d.ProjetoId)).ToListAsync(cancellationToken)).ToLookup(d => d.ProjetoId);
+            var publicIds = projetos.ToDictionary(p => p.Id, p => p.PublicId);
+            var nomes = projetos.ToDictionary(p => p.Id, p => p.Nome);
+            var dependencias = (await contexto.Set<DependenciaProjetoEntity>().Where(d => ids.Contains(d.ProjetoId)).ToListAsync(cancellationToken)).ToLookup(d => d.ProjetoId);
+
             return new AplicacaoDetalheDto
             {
                 Id = app.PublicId,
@@ -70,14 +77,11 @@ namespace Esteira.Data.Aplicacoes
                 Grupo = app.GrupoGitLabCaminho,
                 Ativa = app.Ativa,
                 Politicas = politicas.OrderBy(p => p.Ambiente).Select(AplicacaoErros.Dto).ToList(),
-                Projetos = projetos.Select(p => new ProjetoResumoDto
-                {
-                    Id = p.PublicId,
-                    Nome = p.Nome,
-                    Caminho = p.Caminho,
-                    Stack = EnumKebab.Texto(p.Stack),
-                    Ativo = p.Ativo
-                }).ToList(),
+                Projetos = projetos.Select(p => ProjetoErros.Dto(
+                    p,
+                    ambientes[p.Id],
+                    destinos[p.Id],
+                    dependencias[p.Id].OrderBy(d => nomes[d.DependeDeProjetoId], StringComparer.Ordinal).Select(d => publicIds[d.DependeDeProjetoId]))).ToList(),
                 Papeis = papeis.Select(p => new PapelResumoDto
                 {
                     Id = p.PublicId,

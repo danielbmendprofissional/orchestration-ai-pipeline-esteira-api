@@ -32,6 +32,7 @@ namespace Esteira.IoC
             services.AddScoped<IRegistradorDePessoa, RegistradorDePessoa>();
             services.AddScoped<IAplicacaoRepositorio, AplicacaoRepositorio>();
             services.AddScoped<IAplicacaoQuery, AplicacaoQuery>();
+            services.AddScoped<IProjetoRepositorio, ProjetoRepositorio>();
 
             //Feature
             var application = typeof(ValidationBehavior<,>).Assembly;

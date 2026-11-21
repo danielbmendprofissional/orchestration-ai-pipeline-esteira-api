@@ -23,7 +23,25 @@ namespace Esteira.Application.Aplicacoes
         public string Modo { get; set; } = default!;
     }
 
-    // Resumos mínimos: Projetos/Destinos completos são da A1.4 e papéis/pessoas da A1.5, que estendem estes tipos.
+    // A configuração do Destino nunca carrega segredo (critério 10).
+    public sealed class DestinoDto
+    {
+        public Guid Id { get; set; }
+        public string Nome { get; set; } = default!;
+        public Dictionary<string, string> Configuracao { get; set; } = [];
+        public int Ordem { get; set; }
+    }
+
+    public sealed class AmbienteProjetoDto
+    {
+        public Guid Id { get; set; }
+        public string Ambiente { get; set; } = default!;
+        public bool Habilitado { get; set; }
+        public List<DestinoDto> Destinos { get; set; } = [];
+    }
+
+    // Projeto completo (A1.4): stack, ativo, Ambientes com Destinos e dependências (PublicId dos Projetos de que depende).
+    // Papéis/pessoas são da A1.5, que estende PapelResumoDto.
     public sealed class ProjetoResumoDto
     {
         public Guid Id { get; set; }
@@ -31,6 +49,19 @@ namespace Esteira.Application.Aplicacoes
         public string Caminho { get; set; } = default!;
         public string Stack { get; set; } = default!;
         public bool Ativo { get; set; }
+        public List<AmbienteProjetoDto> Ambientes { get; set; } = [];
+        public List<Guid> DependeDe { get; set; } = [];
+    }
+
+    // Item da lista de projetos do grupo no GitLab (GET /aplicacoes/{id}/gitlab/projetos).
+    public sealed class ProjetoGitLabItemDto
+    {
+        public long ProjetoGitLabId { get; set; }
+        public string Caminho { get; set; } = default!;
+        public string Nome { get; set; } = default!;
+        public bool Cadastrado { get; set; }
+        // `dotnet` | `angular` | null (sem sugestão).
+        public string? StackSugerida { get; set; }
     }
 
     public sealed class PapelResumoDto
