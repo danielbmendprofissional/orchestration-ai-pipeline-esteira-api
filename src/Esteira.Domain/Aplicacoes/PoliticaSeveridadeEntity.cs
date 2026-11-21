@@ -40,6 +40,25 @@ namespace Esteira.Domain.Aplicacoes
             });
         }
 
+        // Política criada junto com a Aplicação: review avisa; qa/hml/producao bloqueiam com Crítica=0 e Alta=0.
+        public static PoliticaSeveridadeEntity Padrao(long aplicacaoId, AmbientePolitica ambiente)
+        {
+            Guard.AgainstInvalidEnum<AmbientePolitica>(ambiente, nameof(ambiente));
+
+            var temPiso = TemPiso(ambiente);
+            return new PoliticaSeveridadeEntity
+            {
+                AplicacaoId = aplicacaoId,
+                Ambiente = ambiente,
+                Critica = temPiso ? 0 : null,
+                Alta = temPiso ? 0 : null,
+                Modo = temPiso ? ModoPolitica.Bloqueia : ModoPolitica.Avisa
+            };
+        }
+
+        // Piso fixo (critério 11a): em qa/hml/producao só é permitido endurecer.
+        private static bool TemPiso(AmbientePolitica ambiente) => ambiente != AmbientePolitica.Review;
+
         public Result Alterar(int? critica, int? alta, int? media, int? baixa, ModoPolitica modo)
         {
             Guard.AgainstInvalidEnum<ModoPolitica>(modo, nameof(modo));
@@ -47,6 +66,12 @@ namespace Esteira.Domain.Aplicacoes
             var limites = LimitesSeveridadeValueObject.Criar(critica, alta, media, baixa);
             if (!limites.IsSuccess)
                 return Result.Falha(limites.Errors.ToArray());
+
+            if (TemPiso(Ambiente) && (modo != ModoPolitica.Bloqueia || critica != 0 || alta != 0))
+                return Result.Falha(new Erro(
+                    "politica.abaixo-do-minimo",
+                    "Em qa, hml e producao a política deve bloquear com Crítica e Alta em 0; só é permitido endurecer.",
+                    TipoErro.Failure));
 
             Critica = critica;
             Alta = alta;
