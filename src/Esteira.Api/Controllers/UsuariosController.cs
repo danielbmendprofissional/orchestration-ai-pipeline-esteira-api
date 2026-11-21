@@ -1,3 +1,4 @@
+using Esteira.Api.Erros;
 using Esteira.Application.Interfaces.Usuario;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +12,8 @@ namespace Esteira.Api.Controllers
     {
         // Quem sou eu: o front chama uma vez no boot (ADR-0004). A sessão é exigida pela política padrão.
         [HttpGet("me")]
+        [ProducesResponseType<UsuarioLogadoDto>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
         public IActionResult Me()
             => Ok(new UsuarioLogadoDto(usuarioAtual.Usuario, usuarioAtual.Nome, usuarioAtual.Email, usuarioAtual.Perfis));
     }
