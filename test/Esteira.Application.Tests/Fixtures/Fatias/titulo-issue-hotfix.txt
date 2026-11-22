@@ -1,0 +1,1 @@
+Hotfix: Arredondamento de juros errado no boleto

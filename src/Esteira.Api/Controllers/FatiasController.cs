@@ -52,6 +52,14 @@ namespace Esteira.Api.Controllers
         public async Task<Result> Atualizar(Guid id, CancellationToken cancellationToken)
             => await mediator.Send(new AtualizarFatiasCommand(id), cancellationToken);
 
+        // Pedidos de hotfix (ADR-0027) da Aplicação, lidos do workspace. Consumido pela E3c.
+        [HttpGet("aplicacoes/{id:guid}/hotfixes")]
+        [ProducesResponseType<HotfixesDto>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        public async Task<Result<HotfixesDto>> Hotfixes(Guid id, CancellationToken cancellationToken)
+            => await mediator.Send(new ObterHotfixesQuery(id), cancellationToken);
+
         [HttpGet("aplicacoes/{id:guid}/fatias/{codigo}")]
         [ProducesResponseType<GavetaDto>(StatusCodes.Status200OK)]
         [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
