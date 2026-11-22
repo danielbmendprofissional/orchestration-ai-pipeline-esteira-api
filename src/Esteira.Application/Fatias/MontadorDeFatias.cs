@@ -1,4 +1,4 @@
-using Esteira.Application.Interfaces.Integracoes;
+﻿using Esteira.Application.Interfaces.Integracoes;
 
 namespace Esteira.Application.Fatias
 {
@@ -59,7 +59,41 @@ namespace Esteira.Application.Fatias
 
             return new FatiaLida(linha.Codigo, linha.Titulo, linha.Status, linha.StatusReconhecido, linha.Repositorios,
                 spec?.Risco, spec is not null, linha.CaminhoSpec, mae?.Iid, estado,
-                estado.FormatoAnterior || spec?.FormatoAnterior == true);
+                estado.FormatoAnterior || spec?.FormatoAnterior == true,
+                MontarDetalhe(linha, mae, bloco, issues, mrs));
+        }
+
+        // SÃ³ leitura do que jÃ¡ veio: filhas pelo tÃ­tulo <cÃ³digo>.<N> â€” â€¦, tasks do bloco, MRs casadas pelo tÃ­tulo da Fatia.
+        private static DetalheDaFatia MontarDetalhe(
+            LinhaDoMapa linha, IssueGitLabDto? mae, BlocoDeExecucao? bloco, IReadOnlyList<IssueGitLabDto> issues, IReadOnlyList<MrDaFatia> mrs)
+        {
+            static RepositorioFatia? DaLabel(IssueGitLabDto i) =>
+                i.Labels is null ? null
+                : i.Labels.Contains("backend", StringComparer.OrdinalIgnoreCase) ? RepositorioFatia.Api
+                : i.Labels.Contains("frontend", StringComparer.OrdinalIgnoreCase) ? RepositorioFatia.Frontend
+                : null;
+
+            var filhas = new List<(FilhaDaFatia Filha, IssueGitLabDto Issue)>();
+            foreach (var issue in issues)
+            {
+                var t = LeitorDeTitulo.Ler(issue?.Titulo, [linha.Codigo]);
+                if (issue is not null && t is { NumeroTask: { } n } && string.Equals(t.Codigo, linha.Codigo, StringComparison.OrdinalIgnoreCase))
+                    filhas.Add((new FilhaDaFatia(issue.Iid, n, t.Titulo, issue.Estado, DaLabel(issue)), issue));
+            }
+
+            var unico = linha.Repositorios.Count == 1 ? linha.Repositorios[0] : (RepositorioFatia?)null;
+            var tasks = (bloco?.Tasks ?? []).Select(t => new TaskDaGaveta(
+                t.Codigo, t.NumeroTask, t.IssueFilha, t.Feita, t.EmAndamento, t.Sha, t.Executor, t.ReviewPass,
+                filhas.FirstOrDefault(f => f.Filha.Iid == t.IssueFilha).Filha?.Repositorio ?? unico)).ToList();
+
+            var mrsDaFatia = mrs
+                .Where(m => m?.Mr is not null && LeitorDeTitulo.Ler(m.Mr.Titulo, [linha.Codigo]) is { NumeroTask: null } t
+                            && string.Equals(t.Codigo, linha.Codigo, StringComparison.OrdinalIgnoreCase))
+                .Select(m => new MrDaGaveta(m.Repositorio, m.Mr.Iid, m.Mr.Titulo, m.Mr.Estado, m.Mr.BranchOrigem, m.Mr.StatusPipeline))
+                .ToList();
+
+            return new DetalheDaFatia(mae?.Titulo, mae?.Estado, filhas.Select(f => f.Filha).OrderBy(f => f.NumeroTask).ToList(), tasks, mrsDaFatia);
         }
     }
 }
+

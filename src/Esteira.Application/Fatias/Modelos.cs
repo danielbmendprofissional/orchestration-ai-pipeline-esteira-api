@@ -54,5 +54,21 @@ namespace Esteira.Application.Fatias
     public sealed record FatiaLida(
         string Codigo, string Titulo, string Status, bool StatusReconhecido,
         IReadOnlyList<RepositorioFatia> Repositorios, string? Risco, bool SpecDisponivel, string? CaminhoSpec,
-        long? IssueMae, ResultadoDeEstado Estado, bool FormatoAnterior);
+        long? IssueMae, ResultadoDeEstado Estado, bool FormatoAnterior, DetalheDaFatia? Detalhe = null);
+
+    // Filha da mãe (`<código>.<N> — …`); `Repositorio` vem da label `backend`/`frontend` (null se não diz).
+    public sealed record FilhaDaFatia(long Iid, int NumeroTask, string Titulo, string Estado, RepositorioFatia? Repositorio);
+
+    // Task do bloco de execução. `Repositorio`: o da filha (label), senão o único da Fatia, senão null.
+    public sealed record TaskDaGaveta(
+        string Codigo, int NumeroTask, long IssueFilha, bool Feita, bool EmAndamento, string? Sha,
+        string? Executor, bool ReviewPass, RepositorioFatia? Repositorio);
+
+    // MR da Fatia num repositório (casada pelo título `<código> — …`).
+    public sealed record MrDaGaveta(RepositorioFatia Repositorio, long Iid, string Titulo, string Estado, string Branch, string? StatusPipeline);
+
+    // O que a gaveta mostra e a linha da lista não: guardado no mesmo instantâneo (sem segunda leitura).
+    public sealed record DetalheDaFatia(
+        string? MaeTitulo, string? MaeEstado,
+        IReadOnlyList<FilhaDaFatia> Filhas, IReadOnlyList<TaskDaGaveta> Tasks, IReadOnlyList<MrDaGaveta> Mrs);
 }

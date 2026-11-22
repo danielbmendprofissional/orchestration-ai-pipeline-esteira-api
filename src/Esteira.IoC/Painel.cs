@@ -21,6 +21,7 @@ namespace Esteira.IoC
             services.AddSingleton(TimeProvider.System);
             services.AddSingleton<IPainelCache>(sp => new RedisPainelCache(sp.GetRequiredService<IConnectionMultiplexer>(), prefixo));
             services.AddScoped<IPainelDeFatias, PainelDeFatias>();
+            services.AddSingleton(sp => new LinksDoGitLab(sp.GetRequiredService<IConfiguration>()["GitLab:Url"]));
 
             return services;
         }
