@@ -1,4 +1,4 @@
-﻿using Esteira.Application.Interfaces.Integracoes;
+using Esteira.Application.Interfaces.Integracoes;
 
 namespace Esteira.Application.Fatias
 {
@@ -63,7 +63,7 @@ namespace Esteira.Application.Fatias
                 MontarDetalhe(linha, mae, bloco, issues, mrs));
         }
 
-        // SÃ³ leitura do que jÃ¡ veio: filhas pelo tÃ­tulo <cÃ³digo>.<N> â€” â€¦, tasks do bloco, MRs casadas pelo tÃ­tulo da Fatia.
+        // Só leitura do que já veio: filhas pelo título <código>.<N> — …, tasks do bloco, MRs casadas pelo título da Fatia.
         private static DetalheDaFatia MontarDetalhe(
             LinhaDoMapa linha, IssueGitLabDto? mae, BlocoDeExecucao? bloco, IReadOnlyList<IssueGitLabDto> issues, IReadOnlyList<MrDaFatia> mrs)
         {
