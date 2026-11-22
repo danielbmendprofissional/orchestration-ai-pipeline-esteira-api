@@ -1,0 +1,1 @@
+B2 — Result pattern + Problem Details (ADR-0003)

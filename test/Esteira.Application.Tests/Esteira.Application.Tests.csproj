@@ -26,4 +26,8 @@
     <ProjectReference Include="..\..\src\Esteira.Messaging\Esteira.Messaging.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,5 @@
+refactor: VOs devolvem Result e saem as exceptions de negócio (B2.5 · workspace#8)
+
+Executed-by: backend (sonnet)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
