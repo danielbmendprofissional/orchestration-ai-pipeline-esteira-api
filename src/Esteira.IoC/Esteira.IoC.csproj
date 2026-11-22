@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Shared framework (não é pacote novo): AddHttpClient e Options.Configuration para o registro do IGitLab. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.11" />
   </ItemGroup>

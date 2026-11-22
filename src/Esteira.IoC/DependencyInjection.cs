@@ -1,6 +1,10 @@
 ﻿using FluentValidation;
 using Esteira.Application.Behavios;
 using Esteira.Application.Common.Events;
+using Esteira.Application.Aplicacoes;
+using Esteira.Application.Interfaces.Aplicacoes;
+using Esteira.Application.Interfaces.Auditoria;
+using Esteira.Data.Aplicacoes;
 using Esteira.Application.Interfaces.Cache;
 using Esteira.Application.Interfaces.UnitOfWork;
 using Esteira.Data.Common.Events;
@@ -8,6 +12,7 @@ using Esteira.Data.Common.Persistence;
 using Esteira.Infra.Cache;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Esteira.IoC
 {
@@ -19,6 +24,18 @@ namespace Esteira.IoC
             services.AddSingleton<ICacheService, MemoryCacheService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+            services.TryAddSingleton(TimeProvider.System);
+            services.AddScoped<IAuditoria, AuditoriaEf>();
+            services.AddScoped<IAcessoAplicacaoQuery, AcessoAplicacaoQuery>();
+            services.AddScoped<IAutorizacaoAplicacao, AutorizacaoAplicacao>();
+            services.AddScoped<IPessoaRepositorio, PessoaRepositorio>();
+            services.AddScoped<IRegistradorDePessoa, RegistradorDePessoa>();
+            services.AddScoped<IAplicacaoRepositorio, AplicacaoRepositorio>();
+            services.AddScoped<IAplicacaoQuery, AplicacaoQuery>();
+            services.AddScoped<IProjetoRepositorio, ProjetoRepositorio>();
+            services.AddScoped<IPapelRepositorio, PapelRepositorio>();
+            services.AddScoped<IPapelQuery, PapelQuery>();
+            services.AddScoped<IPessoaQuery, PessoaQuery>();
 
             //Feature
             var application = typeof(ValidationBehavior<,>).Assembly;

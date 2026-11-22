@@ -1,5 +1,7 @@
 using Esteira.Application.Interfaces.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 namespace Esteira.Data.Common.Persistence
 {
@@ -20,12 +22,25 @@ namespace Esteira.Data.Common.Persistence
 
         public async Task<int> SaveChangesAsync()
         {
-            return await _context.SaveChangesAsync();
+            return await SalvarAsync();
+        }
+
+        // 23505 (índice único) vira exceção técnica da Application: o handler a traduz no erro da regra (corrida).
+        private async Task<int> SalvarAsync()
+        {
+            try
+            {
+                return await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
+            {
+                throw new ViolacaoDeUnicidadeException(pg.ConstraintName, ex);
+            }
         }
 
         public async Task CommitAsync()
         {
-            await _context.SaveChangesAsync();
+            await SalvarAsync();
 
             if (_transaction is null)
                 return;
