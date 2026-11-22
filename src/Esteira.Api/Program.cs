@@ -98,6 +98,7 @@ builder.Services.AddSessaoRedis(builder.Configuration);
 builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddDependencyInjection();
 builder.Services.AddGitLab(builder.Configuration);
+builder.Services.AddPainelDeFatias(builder.Configuration);
 
 // RabbitMQ entra pelo health check que o próprio MassTransit registra.
 builder.Services.AddHealthChecks()

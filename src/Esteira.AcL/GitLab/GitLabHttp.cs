@@ -31,6 +31,7 @@ namespace Esteira.AcL.GitLab
         private const int MaximoDePaginas = 50;
         private const int TituloMaximo = 200;
         private const int DescricaoMaxima = 2000;
+        private const int DescricaoDaMaeMaxima = 10000;
 
         private static readonly Erro BotNaoConfigurado = new(
             "gitlab.bot-nao-configurado", "O bot do GitLab não está configurado para este grupo.", TipoErro.Failure);
@@ -136,7 +137,8 @@ namespace Esteira.AcL.GitLab
                     item.GetProperty("state").GetString()!,
                     item.TryGetProperty("labels", out var l) && l.ValueKind == JsonValueKind.Array
                         ? l.EnumerateArray().Select(x => x.GetString()!).ToList()
-                        : []),
+                        : [],
+                    DescricaoDaMae(item)),
                 cancellationToken);
 
         public Task<Result<IReadOnlyList<MergeRequestGitLabDto>>> ListarMergeRequestsAsync(
@@ -179,6 +181,17 @@ namespace Esteira.AcL.GitLab
                         ? branch.GetString() : null,
                     caminho.StartsWith(grupoCaminho + "/", StringComparison.OrdinalIgnoreCase)));
             }, cancellationToken);
+        }
+
+        // Só a issue com label `em-execucao` carrega a descrição (bloco de execução da mãe); as outras não pagam o tráfego.
+        private static string? DescricaoDaMae(JsonElement item)
+        {
+            if (!item.TryGetProperty("labels", out var labels) || labels.ValueKind != JsonValueKind.Array
+                || !labels.EnumerateArray().Any(l => l.GetString() == "em-execucao"))
+                return null;
+
+            return item.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String
+                ? Cortar(d.GetString(), DescricaoDaMaeMaxima) : null;
         }
 
         private static string? Cortar(string? texto, int maximo)

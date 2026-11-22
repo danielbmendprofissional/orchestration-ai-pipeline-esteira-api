@@ -9,7 +9,8 @@ namespace Esteira.Application.Interfaces.Integracoes
 
     // Leitura do Painel (P1). Textos de terceiros chegam cortados: título em 200 caracteres, descrição em 2000.
     // Estado como o GitLab devolve: opened | closed (issue); opened | closed | merged | locked (MR).
-    public sealed record IssueGitLabDto(long Iid, string Titulo, string Estado, IReadOnlyList<string> Labels);
+    // Descricao: só vem preenchida nas issues com label `em-execucao` (a mãe, com o bloco de execução), cortada em 10000 caracteres.
+    public sealed record IssueGitLabDto(long Iid, string Titulo, string Estado, IReadOnlyList<string> Labels, string? Descricao = null);
 
     // StatusPipeline: status do pipeline da MR (`head_pipeline`: success, failed, running, pending...); null se não há.
     public sealed record MergeRequestGitLabDto(
