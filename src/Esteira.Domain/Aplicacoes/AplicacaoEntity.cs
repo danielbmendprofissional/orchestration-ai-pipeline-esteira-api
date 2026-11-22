@@ -13,6 +13,25 @@ namespace Esteira.Domain.Aplicacoes
         public long GrupoGitLabId { get; private set; }
         public string GrupoGitLabCaminho { get; private set; } = default!;
         public bool Ativa { get; private set; }
+        // Workspace (P1): os dois nulos ou os dois preenchidos; só os métodos abaixo os alteram.
+        public long? WorkspaceGitLabId { get; private set; }
+        public string? WorkspaceGitLabCaminho { get; private set; }
+
+        public Result DefinirWorkspace(long projetoGitLabId, string? caminho)
+        {
+            if (projetoGitLabId <= 0 || string.IsNullOrWhiteSpace(caminho))
+                return Result.Falha(new Erro("aplicacao.workspace-invalido", "Informe o id e o caminho do workspace.", TipoErro.Validation));
+
+            WorkspaceGitLabId = projetoGitLabId;
+            WorkspaceGitLabCaminho = caminho.Trim();
+            return Result.Sucesso();
+        }
+
+        public void LimparWorkspace()
+        {
+            WorkspaceGitLabId = null;
+            WorkspaceGitLabCaminho = null;
+        }
 
         public static string NormalizarSigla(string? sigla) => (sigla ?? string.Empty).Trim().ToUpperInvariant();
 
