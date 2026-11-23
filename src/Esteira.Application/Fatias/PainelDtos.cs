@@ -5,7 +5,8 @@ namespace Esteira.Application.Fatias
     public sealed record FatiaDoPainelDto(
         Guid AplicacaoId, string Aplicacao, string Sigla, string Codigo, string Titulo, string Estado, string? Progresso,
         bool EmCorrecao, bool FormatoAnterior, string? Risco, string Status, bool StatusReconhecido,
-        IReadOnlyList<string> Repositorios, bool SpecDisponivel);
+        IReadOnlyList<string> Repositorios, bool SpecDisponivel,
+        Decisoes.AcoesDaFatiaDto? Acoes = null, Decisoes.ReviewDaFatiaDto? Review = null, string? Decisao = null);
 
     // `Codigo`: painel.sem-workspace | gitlab.bot-nao-configurado | gitlab.indisponivel | painel.indisponivel.
     public sealed record AvisoDoPainelDto(Guid AplicacaoId, string Aplicacao, string Codigo, string Mensagem);
@@ -39,5 +40,7 @@ namespace Esteira.Application.Fatias
     public sealed record GavetaDto(
         Guid AplicacaoId, string Codigo, string Titulo, string Estado, string? Progresso, bool EmCorrecao, bool FormatoAnterior,
         GavetaSpecDto Spec, GavetaIssueDto? Mae, IReadOnlyList<GavetaIssueDto> Filhas,
-        IReadOnlyList<GavetaRepositorioDto> Repositorios, IReadOnlyList<GavetaTaskDto> Tasks);
+        IReadOnlyList<GavetaRepositorioDto> Repositorios, IReadOnlyList<GavetaTaskDto> Tasks,
+        Decisoes.AcoesDaFatiaDto? Acoes = null, Decisoes.ReviewDaFatiaDto? Review = null, string? Decisao = null,
+        IReadOnlyList<Decisoes.AcaoDaFatiaDto>? AcoesPedidas = null);
 }
