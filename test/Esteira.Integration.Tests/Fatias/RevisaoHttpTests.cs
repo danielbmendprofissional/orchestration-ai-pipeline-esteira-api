@@ -164,7 +164,7 @@ namespace Esteira.Integration.Tests.Fatias
             reprovar.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         }
 
-        [Fact, DisplayName("Abrir review: Membro recebe 202 com uma Ação por repositório, API primeiro; repetir dá 409 fatia.review-ja-pedido")]
+        [Fact, DisplayName("Abrir review: Membro recebe 202 com uma Ação por repositório, API primeiro; repetir devolve 202 com as mesmas Ações (duplo clique)")]
         public async Task Abrir_review_202()
         {
             var membro = $"sub-r-{Guid.NewGuid():N}";
@@ -180,8 +180,9 @@ namespace Esteira.Integration.Tests.Fatias
             acoes.Select(a => a.GetProperty("repositorio").GetString()).Should().Equal("api", "frontend");
             acoes.Should().OnlyContain(a => a.GetProperty("tipo").GetString() == "abrir-review" && a.GetProperty("estado").GetString() == "pedida");
             acoes.Select(a => a.GetProperty("mrIid").GetInt64()).Should().Equal(3, 8);
-            repetida.StatusCode.Should().Be(HttpStatusCode.Conflict);
-            (await CorpoAsync(repetida)).GetProperty("errors")[0].GetProperty("code").GetString().Should().Be("fatia.review-ja-pedido");
+            repetida.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            (await CorpoAsync(repetida)).GetProperty("acoes").EnumerateArray().Select(a => a.GetProperty("id").GetGuid())
+                .Should().Equal(acoes.Select(a => a.GetProperty("id").GetGuid()));
         }
 
         [Fact, DisplayName("Aprovar: Aprovador técnico recebe 202 com uma Ação por MR; CI vermelho é 409 fatia.ci-nao-verde")]

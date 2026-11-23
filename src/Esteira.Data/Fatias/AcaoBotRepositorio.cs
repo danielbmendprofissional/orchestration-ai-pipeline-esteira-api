@@ -20,6 +20,13 @@ namespace Esteira.Data.Fatias
             => await contexto.Set<AcaoBotEntity>().Where(a => a.AplicacaoId == aplicacaoId && a.FatiaCodigo == fatiaCodigo)
                 .OrderBy(a => a.Id).ToListAsync(cancellationToken);
 
+        // hashtextextended do Postgres: hash estável de 64 bits, sem depender de GetHashCode do .NET.
+        public async Task TravarFatiaAsync(long aplicacaoId, string fatiaCodigo, CancellationToken cancellationToken = default)
+        {
+            var chave = $"acao-bot:{aplicacaoId}:{fatiaCodigo.ToUpperInvariant()}";
+            await contexto.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({chave}, 0))", cancellationToken);
+        }
+
         public async Task AdicionarAsync(AcaoBotEntity acao, CancellationToken cancellationToken = default)
             => await contexto.Set<AcaoBotEntity>().AddAsync(acao, cancellationToken);
     }

@@ -41,24 +41,33 @@ namespace Esteira.Application.Fatias.Decisoes
 
             // Uma Ação por MR aberta, API primeiro. Aprovação que falhou ou foi cancelada fica no histórico e o novo pedido é a
             // tentativa seguinte; a ainda pedida/executando/confirmada mantém a tentativa e cai na mesma chave (duplo clique).
-            var historico = await acoes.ListarDaFatiaAsync(p.AplicacaoId, p.Fatia.Codigo, cancellationToken);
-            var plano = p.MrsAbertas.OrderBy(m => m.Repositorio).ThenBy(m => m.Iid).Select(mr =>
-            {
-                var tentativa = 1 + historico.Count(a => a.Tipo == TipoAcaoBot.Aprovar && a.ProjetoId == mr.ProjetoId && a.MrIid == mr.Iid
-                    && (a.Estado == EstadoAcaoBot.Falhou || a.Estado == EstadoAcaoBot.Cancelada));
-                return new Planejada(mr, tentativa, AcaoBotEntity.MontarChave(p.AplicacaoId, p.Fatia.Codigo, TipoAcaoBot.Aprovar, mr.ProjetoId, mr.Iid, tentativa));
-            }).ToList();
-
-            var existentes = await ObterExistentesAsync(plano, cancellationToken);
-            if (existentes is not null)
-                return Resposta(plano, existentes);
-
-            if (DecisaoErros.HaDecisaoEmAndamento(historico))
-                return Result<AcoesPedidasDto>.Falha(DecisaoErros.DecisaoEmAndamento);
-
+            IReadOnlyList<Planejada> plano = [];
             await uow.BeginTransactionAsync();
             try
             {
+                // Trava por Fatia antes de reler: Aprovar e Reprovar concorrentes se enfileiram e o segundo enxerga o primeiro.
+                await acoes.TravarFatiaAsync(p.AplicacaoId, p.Fatia.Codigo, cancellationToken);
+                var historico = await acoes.ListarDaFatiaAsync(p.AplicacaoId, p.Fatia.Codigo, cancellationToken);
+                plano = p.MrsAbertas.OrderBy(m => m.Repositorio).ThenBy(m => m.Iid).Select(mr =>
+                {
+                    var tentativa = 1 + historico.Count(a => a.Tipo == TipoAcaoBot.Aprovar && a.ProjetoId == mr.ProjetoId && a.MrIid == mr.Iid
+                        && (a.Estado == EstadoAcaoBot.Falhou || a.Estado == EstadoAcaoBot.Cancelada));
+                    return new Planejada(mr, tentativa, AcaoBotEntity.MontarChave(p.AplicacaoId, p.Fatia.Codigo, TipoAcaoBot.Aprovar, mr.ProjetoId, mr.Iid, tentativa));
+                }).ToList();
+
+                var existentes = await ObterExistentesAsync(plano, cancellationToken);
+                if (existentes is not null)
+                {
+                    await uow.RollbackAsync();
+                    return Resposta(plano, existentes);
+                }
+
+                if (DecisaoErros.HaDecisaoEmAndamento(historico))
+                {
+                    await uow.RollbackAsync();
+                    return Result<AcoesPedidasDto>.Falha(DecisaoErros.DecisaoEmAndamento);
+                }
+
                 var criadas = new List<AcaoBotEntity>();
                 var temFront = plano.Any(x => x.Mr.Repositorio != RepositorioFatia.Api);
                 foreach (var item in plano)

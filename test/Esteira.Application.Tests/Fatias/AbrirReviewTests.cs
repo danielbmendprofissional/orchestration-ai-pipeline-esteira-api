@@ -257,6 +257,38 @@ namespace Esteira.Application.Tests.Fatias
             _adicionadas.Single(a => a.ProjetoId == 71).ChaveIdempotencia.Should().EndWith(":1");
         }
 
+        [Theory, DisplayName("Critério 7: mesmo pedido seguido (Ação viva com a mesma chave) devolve o estado da primeira, 202, sem criar outra")]
+        [InlineData(EstadoAcaoBot.Pedida)]
+        [InlineData(EstadoAcaoBot.Executando)]
+        [InlineData(EstadoAcaoBot.Confirmada)]
+        public async Task Pedido_identico_seguido_devolve_a_primeira(EstadoAcaoBot estado)
+        {
+            var api = AcaoExistente(71, 3, estado, 1);
+            var front = AcaoExistente(72, 8, estado, 1);
+            _acoes.ListarDaFatiaAsync(AppId, "P2", Arg.Any<CancellationToken>()).Returns([api, front]);
+            _acoes.ObterPorChaveAsync("5:P2:abrir-review:71:3:1", Arg.Any<CancellationToken>()).Returns(api);
+            _acoes.ObterPorChaveAsync("5:P2:abrir-review:72:8:1", Arg.Any<CancellationToken>()).Returns(front);
+
+            var r = await Executar();
+
+            r.IsSuccess.Should().BeTrue();
+            r.Value.Acoes.Select(a => a.Id).Should().Equal(api.PublicId, front.PublicId);
+            NadaGravado();
+        }
+
+        [Fact, DisplayName("Critério 7: a trava da Fatia é pedida dentro da transação, antes de reler as Ações")]
+        public async Task Trava_antes_de_reler()
+        {
+            await Executar();
+
+            Received.InOrder(() =>
+            {
+                _uow.BeginTransactionAsync();
+                _acoes.TravarFatiaAsync(AppId, "P2", Arg.Any<CancellationToken>());
+                _acoes.ListarDaFatiaAsync(AppId, "P2", Arg.Any<CancellationToken>());
+            });
+        }
+
         [Fact, DisplayName("Duplo clique: chave que já existe devolve o estado da primeira Ação sem gravar nem publicar de novo")]
         public async Task Chave_existente_devolve_a_primeira()
         {

@@ -100,17 +100,18 @@ namespace Esteira.Integration.Tests.Fatias
             await host.StopAsync(Ct);
         }
 
-        [Fact, DisplayName("Segundo pedido em sequência é recusado (fatia.review-ja-pedido) e não duplica Ação, auditoria nem outbox")]
+        [Fact, DisplayName("Segundo pedido em sequência devolve a primeira Ação (critério 7) e não duplica Ação, auditoria nem outbox")]
         public async Task Sequencial_nao_duplica()
         {
             using var host = HostDeTeste.Criar(infra, HostDeTeste.AmbienteUnico());
             await host.StartAsync(Ct);
             var c = await CriarCenarioAsync();
-            await PedirAsync(host, c);
+            var primeiro = await PedirAsync(host, c);
 
             var segundo = await PedirAsync(host, c);
 
-            segundo.Errors.Should().ContainSingle().Which.Code.Should().Be("fatia.review-ja-pedido");
+            segundo.IsSuccess.Should().BeTrue();
+            segundo.Value.Acoes.Select(a => a.Id).Should().Equal(primeiro.Value.Acoes.Select(a => a.Id));
             (await ContarAsync(c)).Should().Be((1, 1, 1));
             await host.StopAsync(Ct);
         }
@@ -125,7 +126,7 @@ namespace Esteira.Integration.Tests.Fatias
             var resultados = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(() => PedirAsync(host, c), Ct)));
 
             resultados.Count(r => r.IsSuccess).Should().BeGreaterThanOrEqualTo(1);
-            resultados.Where(r => !r.IsSuccess).Should().OnlyContain(r => r.Errors[0].Code == "fatia.review-ja-pedido");
+            resultados.Should().OnlyContain(r => r.IsSuccess);
             resultados.Where(r => r.IsSuccess).Select(r => r.Value.Acoes[0].Id).Distinct().Should().ContainSingle();
             (await ContarAsync(c)).Should().Be((1, 1, 1));
             await host.StopAsync(Ct);

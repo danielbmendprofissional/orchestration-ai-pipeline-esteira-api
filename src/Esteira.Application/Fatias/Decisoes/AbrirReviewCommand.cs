@@ -42,28 +42,43 @@ namespace Esteira.Application.Fatias.Decisoes
             if (pessoa is null)
                 return Result<AcoesPedidasDto>.Falha(DecisaoErros.PessoaNaoRegistrada);
 
-            // Uma Ação por repositório, na MR aberta mais antiga; a da API primeiro.
-            var historico = await acoes.ListarDaFatiaAsync(p.AplicacaoId, p.Fatia.Codigo, cancellationToken);
-            var plano = new List<Planejada>();
-            foreach (var mr in p.MrsAbertas.GroupBy(m => m.Repositorio).OrderBy(g => g.Key).Select(g => g.OrderBy(m => m.Iid).First()))
-            {
-                var anteriores = historico.Where(a => a.Tipo == TipoAcaoBot.AbrirReview && a.ProjetoId == mr.ProjetoId && a.MrIid == mr.Iid).ToList();
-                if (anteriores.Any(a => a.Estado is EstadoAcaoBot.Pedida or EstadoAcaoBot.Executando or EstadoAcaoBot.Confirmada))
-                    return Result<AcoesPedidasDto>.Falha(DecisaoErros.ReviewJaPedido);
-
-                // Falhou/cancelada ficam no histórico: cada novo pedido é a tentativa seguinte.
-                var tentativa = anteriores.Count + 1;
-                plano.Add(new Planejada(mr.Repositorio, mr, tentativa,
-                    AcaoBotEntity.MontarChave(p.AplicacaoId, p.Fatia.Codigo, TipoAcaoBot.AbrirReview, mr.ProjetoId, mr.Iid, tentativa)));
-            }
-
-            var existentes = await ObterExistentesAsync(plano, cancellationToken);
-            if (existentes is not null)
-                return Resposta(plano, existentes);
-
+            IReadOnlyList<Planejada> plano = [];
             await uow.BeginTransactionAsync();
             try
             {
+                // Trava por Fatia antes de reler as Ações: pedidos concorrentes da mesma Fatia se enfileiram.
+                await acoes.TravarFatiaAsync(p.AplicacaoId, p.Fatia.Codigo, cancellationToken);
+
+                // Uma Ação por repositório, na MR aberta mais antiga; a da API primeiro. A tentativa conta só as que falharam ou
+                // foram canceladas: a ainda viva mantém a tentativa e cai na mesma chave (duplo clique, critério 7).
+                var historico = await acoes.ListarDaFatiaAsync(p.AplicacaoId, p.Fatia.Codigo, cancellationToken);
+                var planejadas = new List<Planejada>();
+                var haViva = false;
+                foreach (var mr in p.MrsAbertas.GroupBy(m => m.Repositorio).OrderBy(g => g.Key).Select(g => g.OrderBy(m => m.Iid).First()))
+                {
+                    var anteriores = historico.Where(a => a.Tipo == TipoAcaoBot.AbrirReview && a.ProjetoId == mr.ProjetoId && a.MrIid == mr.Iid).ToList();
+                    haViva |= anteriores.Any(a => a.Estado is EstadoAcaoBot.Pedida or EstadoAcaoBot.Executando or EstadoAcaoBot.Confirmada);
+                    var tentativa = 1 + anteriores.Count(a => a.Estado is EstadoAcaoBot.Falhou or EstadoAcaoBot.Cancelada);
+                    planejadas.Add(new Planejada(mr.Repositorio, mr, tentativa,
+                        AcaoBotEntity.MontarChave(p.AplicacaoId, p.Fatia.Codigo, TipoAcaoBot.AbrirReview, mr.ProjetoId, mr.Iid, tentativa)));
+                }
+
+                plano = planejadas;
+
+                // Duplo clique: o mesmo pedido já gravado volta como está. Ação viva sem chave igual (pedido distinto) é recusa.
+                var existentes = await ObterExistentesAsync(plano, cancellationToken);
+                if (existentes is not null)
+                {
+                    await uow.RollbackAsync();
+                    return Resposta(plano, existentes);
+                }
+
+                if (haViva)
+                {
+                    await uow.RollbackAsync();
+                    return Result<AcoesPedidasDto>.Falha(DecisaoErros.ReviewJaPedido);
+                }
+
                 var criadas = new List<AcaoBotEntity>();
                 foreach (var item in plano)
                 {
