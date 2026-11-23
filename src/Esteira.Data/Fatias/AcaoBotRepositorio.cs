@@ -13,6 +13,10 @@ namespace Esteira.Data.Fatias
         public Task<AcaoBotEntity?> ObterPorChaveAsync(string chaveIdempotencia, CancellationToken cancellationToken = default)
             => contexto.Set<AcaoBotEntity>().FirstOrDefaultAsync(a => a.ChaveIdempotencia == chaveIdempotencia, cancellationToken);
 
+        public async Task<IReadOnlyList<AcaoBotEntity>> ListarDaFatiaAsync(long aplicacaoId, string fatiaCodigo, CancellationToken cancellationToken = default)
+            => await contexto.Set<AcaoBotEntity>().Where(a => a.AplicacaoId == aplicacaoId && a.FatiaCodigo == fatiaCodigo)
+                .OrderBy(a => a.Id).ToListAsync(cancellationToken);
+
         public async Task AdicionarAsync(AcaoBotEntity acao, CancellationToken cancellationToken = default)
             => await contexto.Set<AcaoBotEntity>().AddAsync(acao, cancellationToken);
     }

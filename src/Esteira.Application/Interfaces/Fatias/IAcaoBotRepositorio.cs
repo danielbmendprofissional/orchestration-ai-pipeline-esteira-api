@@ -9,6 +9,9 @@ namespace Esteira.Application.Interfaces.Fatias
 
         Task<AcaoBotEntity?> ObterPorChaveAsync(string chaveIdempotencia, CancellationToken cancellationToken = default);
 
+        // Todas as Ações da Fatia na Aplicação (qualquer tipo e estado), com tracking: base da tentativa e das regras de recusa.
+        Task<IReadOnlyList<AcaoBotEntity>> ListarDaFatiaAsync(long aplicacaoId, string fatiaCodigo, CancellationToken cancellationToken = default);
+
         Task AdicionarAsync(AcaoBotEntity acao, CancellationToken cancellationToken = default);
     }
 }

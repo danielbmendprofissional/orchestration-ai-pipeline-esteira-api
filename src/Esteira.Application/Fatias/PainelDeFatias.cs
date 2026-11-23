@@ -56,6 +56,10 @@ namespace Esteira.Application.Fatias
 
         // Descarta o guardado. No máximo uma por Aplicação a cada 10 s: `painel.atualizacao-recente` (TipoErro.TooManyRequests, 429).
         Task<Result> AtualizarAsync(AplicacaoDoPainel aplicacao, CancellationToken cancellationToken = default);
+
+        // Leitura fresca para decidir (P2): ignora o guardado e o limite de 10 s do Atualizar, nunca serve a cópia velha
+        // (GitLab fora = Falha) e renova o guardado com o que leu.
+        Task<ResultadoDoPainel> ObterFrescoAsync(AplicacaoDoPainel aplicacao, CancellationToken cancellationToken = default);
     }
 
     public sealed class PainelDeFatias(IGitLab gitlab, IPainelCache cache, TimeProvider relogio, PainelOptions opcoes) : IPainelDeFatias
@@ -148,6 +152,30 @@ namespace Esteira.Application.Fatias
 
             await cache.RemoverAsync(ChaveFresco(aplicacao.Chave), cancellationToken);
             return Result.Sucesso();
+        }
+
+        public async Task<ResultadoDoPainel> ObterFrescoAsync(AplicacaoDoPainel aplicacao, CancellationToken cancellationToken = default)
+        {
+            if (aplicacao.WorkspaceId is null)
+                return new ResultadoDoPainel(aplicacao.Chave, SituacaoDoPainel.SemWorkspace, [], null, false, null);
+
+            try
+            {
+                // Sem guardado, sem trava e sem cópia velha: quem decide precisa do que o GitLab diz agora.
+                var lido = await LerDoGitLabAsync(aplicacao, cancellationToken);
+                if (!lido.IsSuccess)
+                    return Falha(aplicacao.Chave, lido.Errors[0]);
+
+                var instantaneo = new Instantaneo(relogio.GetUtcNow(), lido.Value.ToList());
+                var json = JsonSerializer.Serialize(instantaneo);
+                await cache.GuardarAsync(ChaveCopia(aplicacao.Chave), json, CopiaDuracao, cancellationToken);
+                await cache.GuardarAsync(ChaveFresco(aplicacao.Chave), json, TimeSpan.FromSeconds(Math.Max(1, opcoes.ValidadeSegundos)), cancellationToken);
+                return Ok(aplicacao, instantaneo, false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return Falha(aplicacao.Chave, new Erro("gitlab.indisponivel", "Não foi possível ler o GitLab agora. Tente novamente.", TipoErro.Failure));
+            }
         }
 
         private static ResultadoDoPainel Falha(string chave, Erro erro)

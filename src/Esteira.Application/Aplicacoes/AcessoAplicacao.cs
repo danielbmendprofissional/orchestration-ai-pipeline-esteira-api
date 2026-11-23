@@ -12,6 +12,8 @@ namespace Esteira.Application.Aplicacoes
             OperacaoAplicacao.Ver => TemPapel,
             OperacaoAplicacao.EditarCadastro => Papeis.Contains(PapelAplicacao.Analista),
             OperacaoAplicacao.EditarPolitica => Papeis.Contains(PapelAplicacao.AprovadorTecnico),
+            OperacaoAplicacao.AbrirReview => Papeis.Contains(PapelAplicacao.Membro) || Papeis.Contains(PapelAplicacao.AprovadorTecnico),
+            OperacaoAplicacao.DecidirFatia => Papeis.Contains(PapelAplicacao.AprovadorTecnico),
             _ => false
         };
     }

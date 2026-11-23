@@ -11,6 +11,10 @@ namespace Esteira.Application.Aplicacoes
         // Só MOR.
         GerenciarPapeis,
         // Só MOR: nome, sigla, ativa.
-        EditarAplicacao
+        EditarAplicacao,
+        // Membro, Aprovador técnico ou MOR (P2): pedir o review de uma Fatia Em revisão.
+        AbrirReview,
+        // Aprovador técnico ou MOR (P2): aprovar ou reprovar uma Fatia Em revisão.
+        DecidirFatia
     }
 }
