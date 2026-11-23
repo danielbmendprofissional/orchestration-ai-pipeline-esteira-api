@@ -62,7 +62,14 @@ namespace Esteira.Application.Fatias
         Task<ResultadoDoPainel> ObterFrescoAsync(AplicacaoDoPainel aplicacao, CancellationToken cancellationToken = default);
     }
 
-    public sealed class PainelDeFatias(IGitLab gitlab, IPainelCache cache, TimeProvider relogio, PainelOptions opcoes) : IPainelDeFatias
+    // Porta do descarte do instantâneo (P2): separada do IPainelDeFatias para não obrigar quem só lê a conhecê-la.
+    public interface IDescarteDoPainel
+    {
+        // `chave` = PublicId da Aplicação em texto. Sem o limite de 10 s do Atualizar: a próxima leitura vai ao GitLab.
+        Task DescartarAsync(string chave, CancellationToken cancellationToken = default);
+    }
+
+    public sealed class PainelDeFatias(IGitLab gitlab, IPainelCache cache, TimeProvider relogio, PainelOptions opcoes) : IPainelDeFatias, IDescarteDoPainel
     {
         private const string BranchDoWorkspace = "main";
         private const string CaminhoDoMapa = "specs/README.md";
@@ -153,6 +160,9 @@ namespace Esteira.Application.Fatias
             await cache.RemoverAsync(ChaveFresco(aplicacao.Chave), cancellationToken);
             return Result.Sucesso();
         }
+
+        public Task DescartarAsync(string chave, CancellationToken cancellationToken = default)
+            => cache.RemoverAsync(ChaveFresco(chave), cancellationToken);
 
         public async Task<ResultadoDoPainel> ObterFrescoAsync(AplicacaoDoPainel aplicacao, CancellationToken cancellationToken = default)
         {

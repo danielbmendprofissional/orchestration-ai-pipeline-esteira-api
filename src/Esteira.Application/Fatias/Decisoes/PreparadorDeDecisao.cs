@@ -3,6 +3,7 @@ using Esteira.Application.Fatias.Consultas;
 using Esteira.Application.Interfaces.Aplicacoes;
 using Esteira.Application.Interfaces.Usuario;
 using Esteira.Domain.Common.Resultados;
+using Esteira.Domain.Fatias;
 
 namespace Esteira.Application.Fatias.Decisoes
 {
@@ -23,6 +24,16 @@ namespace Esteira.Application.Fatias.Decisoes
             "fatia.ci-nao-verde",
             "Há MR aberta sem pipeline verde: " + string.Join(", ", mrs.Select(m => $"{PainelErros.Texto(m.Repositorio)} !{m.Iid}")) + ".",
             TipoErro.Conflict);
+
+        public static readonly Erro DecisaoEmAndamento = new(
+            "fatia.decisao-em-andamento", "Já há uma decisão (aprovar ou reprovar) desta Fatia em andamento.", TipoErro.Conflict);
+
+        public static readonly Erro ComentarioInvalido = new(
+            "fatia.comentario-invalido", "O comentário é obrigatório e deve ter de 1 a 2000 caracteres.", TipoErro.Validation);
+
+        // Ação de aprovar ou reprovar ainda pedida ou executando na Fatia.
+        public static bool HaDecisaoEmAndamento(IEnumerable<AcaoBotEntity> acoes) => acoes.Any(a =>
+            a.Tipo is TipoAcaoBot.Aprovar or TipoAcaoBot.Reprovar && a.Estado is EstadoAcaoBot.Pedida or EstadoAcaoBot.Executando);
 
         public static readonly Erro PessoaNaoRegistrada = new(
             "acesso.pessoa-nao-registrada", "Sua pessoa ainda não foi registrada na Esteira. Entre de novo.", TipoErro.Unauthorized);

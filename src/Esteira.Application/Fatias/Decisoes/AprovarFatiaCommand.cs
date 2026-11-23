@@ -53,6 +53,9 @@ namespace Esteira.Application.Fatias.Decisoes
             if (existentes is not null)
                 return Resposta(plano, existentes);
 
+            if (DecisaoErros.HaDecisaoEmAndamento(historico))
+                return Result<AcoesPedidasDto>.Falha(DecisaoErros.DecisaoEmAndamento);
+
             await uow.BeginTransactionAsync();
             try
             {

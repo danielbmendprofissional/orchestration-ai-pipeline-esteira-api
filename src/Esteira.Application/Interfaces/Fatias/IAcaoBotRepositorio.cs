@@ -7,6 +7,9 @@ namespace Esteira.Application.Interfaces.Fatias
     {
         Task<AcaoBotEntity?> ObterAsync(long id, CancellationToken cancellationToken = default);
 
+        // Pelo PublicId que o executor recebe na mensagem AcaoBotPedida.
+        Task<AcaoBotEntity?> ObterPorPublicIdAsync(Guid publicId, CancellationToken cancellationToken = default);
+
         Task<AcaoBotEntity?> ObterPorChaveAsync(string chaveIdempotencia, CancellationToken cancellationToken = default);
 
         // Todas as Ações da Fatia na Aplicação (qualquer tipo e estado), com tracking: base da tentativa e das regras de recusa.

@@ -211,7 +211,7 @@ namespace Esteira.Application.Tests.Fatias
         public async Task Nova_tentativa_depois_de_falha()
         {
             _acoes.ListarDaFatiaAsync(AppId, "P2", Arg.Any<CancellationToken>())
-                .Returns([AcaoExistente(71, 3, EstadoAcaoBot.Falhou, 1), AcaoExistente(71, 3, EstadoAcaoBot.Cancelada, 2), AcaoExistente(71, 3, EstadoAcaoBot.Pedida, 9, TipoAcaoBot.Reprovar)]);
+                .Returns([AcaoExistente(71, 3, EstadoAcaoBot.Falhou, 1), AcaoExistente(71, 3, EstadoAcaoBot.Cancelada, 2), AcaoExistente(71, 3, EstadoAcaoBot.Falhou, 9, TipoAcaoBot.Reprovar)]);
 
             await Executar();
 
@@ -273,6 +273,20 @@ namespace Esteira.Application.Tests.Fatias
 
             await acao.Should().ThrowAsync<ViolacaoDeUnicidadeException>();
             await _uow.Received(1).RollbackAsync();
+        }
+
+        [Theory, DisplayName("6 (P2.4): reprovação pedida ou executando recusa o Aprovar (fatia.decisao-em-andamento, 409) sem gravar")]
+        [InlineData(EstadoAcaoBot.Pedida)]
+        [InlineData(EstadoAcaoBot.Executando)]
+        public async Task Decisao_em_andamento(EstadoAcaoBot estado)
+        {
+            _acoes.ListarDaFatiaAsync(AppId, "P2", Arg.Any<CancellationToken>()).Returns([AcaoExistente(71, 3, estado, 1, TipoAcaoBot.Reprovar)]);
+
+            var r = await Executar();
+
+            var erro = r.Errors.Should().ContainSingle().Subject;
+            (erro.Code, erro.Type).Should().Be(("fatia.decisao-em-andamento", TipoErro.Conflict));
+            NadaGravado();
         }
 
         [Fact, DisplayName("Pessoa que ainda não entrou na Esteira não tem Ação gravada (acesso.pessoa-nao-registrada)")]

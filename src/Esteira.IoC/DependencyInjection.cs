@@ -40,6 +40,7 @@ namespace Esteira.IoC
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();
             services.AddScoped<PreparadorDeDecisao>();
+            services.AddScoped<RegistrarProgressoDaAcao>();
             services.AddScoped<IPapelQuery, PapelQuery>();
             services.AddScoped<IPessoaQuery, PessoaQuery>();
 

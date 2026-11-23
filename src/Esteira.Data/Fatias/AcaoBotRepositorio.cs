@@ -10,6 +10,9 @@ namespace Esteira.Data.Fatias
         public Task<AcaoBotEntity?> ObterAsync(long id, CancellationToken cancellationToken = default)
             => contexto.Set<AcaoBotEntity>().FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
+        public Task<AcaoBotEntity?> ObterPorPublicIdAsync(Guid publicId, CancellationToken cancellationToken = default)
+            => contexto.Set<AcaoBotEntity>().FirstOrDefaultAsync(a => a.PublicId == publicId, cancellationToken);
+
         public Task<AcaoBotEntity?> ObterPorChaveAsync(string chaveIdempotencia, CancellationToken cancellationToken = default)
             => contexto.Set<AcaoBotEntity>().FirstOrDefaultAsync(a => a.ChaveIdempotencia == chaveIdempotencia, cancellationToken);
 
