@@ -14,7 +14,8 @@ namespace Esteira.Api.Erros
             [TipoErro.Forbidden] = StatusCodes.Status403Forbidden,
             [TipoErro.NotFound] = StatusCodes.Status404NotFound,
             [TipoErro.Conflict] = StatusCodes.Status409Conflict,
-            [TipoErro.Failure] = StatusCodes.Status422UnprocessableEntity
+            [TipoErro.Failure] = StatusCodes.Status422UnprocessableEntity,
+            [TipoErro.TooManyRequests] = StatusCodes.Status429TooManyRequests
         };
 
         public static int De(TipoErro tipo) => Status.TryGetValue(tipo, out var status)

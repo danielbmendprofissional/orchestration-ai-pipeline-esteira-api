@@ -1,0 +1,3 @@
+Corrige o arredondamento dos juros.
+
+Closes demo/demo-workspace#51

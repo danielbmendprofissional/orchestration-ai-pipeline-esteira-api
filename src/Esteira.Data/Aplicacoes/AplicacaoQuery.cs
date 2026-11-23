@@ -76,6 +76,9 @@ namespace Esteira.Data.Aplicacoes
                 Sigla = app.Sigla,
                 Grupo = app.GrupoGitLabCaminho,
                 Ativa = app.Ativa,
+                Workspace = app.WorkspaceGitLabId is { } wsId && app.WorkspaceGitLabCaminho is { } wsCaminho
+                    ? new WorkspaceDto { ProjetoGitLabId = wsId, Caminho = wsCaminho }
+                    : null,
                 Politicas = politicas.OrderBy(p => p.Ambiente).Select(AplicacaoErros.Dto).ToList(),
                 Projetos = projetos.Select(p => ProjetoErros.Dto(
                     p,

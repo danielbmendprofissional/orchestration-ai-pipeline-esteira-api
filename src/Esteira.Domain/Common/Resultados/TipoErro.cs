@@ -9,6 +9,7 @@ namespace Esteira.Domain.Common.Resultados
         Conflict,
         Forbidden,
         Unauthorized,
-        Failure
+        Failure,
+        TooManyRequests
     }
 }

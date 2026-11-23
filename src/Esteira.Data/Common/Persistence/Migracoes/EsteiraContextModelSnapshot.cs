@@ -87,6 +87,12 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("WorkspaceGitLabCaminho")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("WorkspaceGitLabId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("GrupoGitLabId")
@@ -98,7 +104,10 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                     b.HasIndex("Sigla")
                         .IsUnique();
 
-                    b.ToTable("Aplicacao", "esteira");
+                    b.ToTable("Aplicacao", "esteira", t =>
+                        {
+                            t.HasCheckConstraint("CK_Aplicacao_WorkspaceCoerente", "(\"WorkspaceGitLabId\" IS NULL AND \"WorkspaceGitLabCaminho\" IS NULL) OR (\"WorkspaceGitLabId\" IS NOT NULL AND \"WorkspaceGitLabCaminho\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Esteira.Domain.Aplicacoes.DependenciaProjetoEntity", b =>

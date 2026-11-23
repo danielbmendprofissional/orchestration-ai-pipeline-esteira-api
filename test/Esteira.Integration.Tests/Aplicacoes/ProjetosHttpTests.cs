@@ -35,6 +35,15 @@ namespace Esteira.Integration.Tests.Aplicacoes
 
             public Task<Result<string?>> ObterArquivoAsync(string grupoCaminho, long projetoId, string caminho, string referencia, CancellationToken cancellationToken = default)
                 => Task.FromResult(Result<string?>.Sucesso(Arquivos.TryGetValue(projetoId, out var c) ? c : null));
+
+            public Task<Result<IReadOnlyList<IssueGitLabDto>>> ListarIssuesAsync(string grupoCaminho, long projetoId, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<Result<IReadOnlyList<MergeRequestGitLabDto>>> ListarMergeRequestsAsync(string grupoCaminho, long projetoId, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<Result<ProjetoDoGrupoGitLabDto?>> ObterProjetoAsync(string grupoCaminho, long projetoId, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
         }
 
         private sealed record Aplic(Guid PublicId, long Id, long GrupoId);

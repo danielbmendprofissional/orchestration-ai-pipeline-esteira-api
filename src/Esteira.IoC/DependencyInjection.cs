@@ -32,6 +32,7 @@ namespace Esteira.IoC
             services.AddScoped<IRegistradorDePessoa, RegistradorDePessoa>();
             services.AddScoped<IAplicacaoRepositorio, AplicacaoRepositorio>();
             services.AddScoped<IAplicacaoQuery, AplicacaoQuery>();
+            services.AddScoped<IPainelAplicacaoQuery, PainelAplicacaoQuery>();
             services.AddScoped<IProjetoRepositorio, ProjetoRepositorio>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IPapelQuery, PapelQuery>();

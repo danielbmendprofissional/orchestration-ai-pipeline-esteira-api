@@ -33,6 +33,9 @@ namespace Esteira.Data.Aplicacoes.Write
             b.Property(x => x.GrupoGitLabCaminho).IsRequired();
             b.HasIndex(x => x.Sigla).IsUnique();
             b.HasIndex(x => x.GrupoGitLabId).IsUnique();
+            // P1: workspace opcional; os dois campos juntos ou nenhum (também no banco).
+            b.ToTable(t => t.HasCheckConstraint("CK_Aplicacao_WorkspaceCoerente",
+                "(\"WorkspaceGitLabId\" IS NULL AND \"WorkspaceGitLabCaminho\" IS NULL) OR (\"WorkspaceGitLabId\" IS NOT NULL AND \"WorkspaceGitLabCaminho\" IS NOT NULL)"));
         }
     }
 

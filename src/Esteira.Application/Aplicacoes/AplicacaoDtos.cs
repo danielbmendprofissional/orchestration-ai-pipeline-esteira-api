@@ -82,6 +82,13 @@ namespace Esteira.Application.Aplicacoes
         public string Email { get; set; } = default!;
     }
 
+    // Workspace da Aplicação (P1): projeto do GitLab onde a Esteira lê mapa, specs e issues.
+    public sealed class WorkspaceDto
+    {
+        public long ProjetoGitLabId { get; set; }
+        public string Caminho { get; set; } = default!;
+    }
+
     public sealed class AplicacaoDetalheDto
     {
         public Guid Id { get; set; }
@@ -89,6 +96,7 @@ namespace Esteira.Application.Aplicacoes
         public string Sigla { get; set; } = default!;
         public string Grupo { get; set; } = default!;
         public bool Ativa { get; set; }
+        public WorkspaceDto? Workspace { get; set; }
         public List<PoliticaDto> Politicas { get; set; } = [];
         public List<ProjetoResumoDto> Projetos { get; set; } = [];
         public List<PapelResumoDto> Papeis { get; set; } = [];

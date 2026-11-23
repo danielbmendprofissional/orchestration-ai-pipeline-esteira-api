@@ -5,6 +5,7 @@ using Esteira.Application.Aplicacoes;
 using Esteira.Application.Aplicacoes.Commands.Alterar;
 using Esteira.Application.Aplicacoes.Commands.AlterarPolitica;
 using Esteira.Application.Aplicacoes.Commands.CadastrarProjeto;
+using Esteira.Application.Aplicacoes.Commands.DefinirWorkspace;
 using Esteira.Application.Aplicacoes.Commands.Criar;
 using Esteira.Application.Aplicacoes.Commands.Papeis;
 using Esteira.Application.Aplicacoes.Queries.Listar;
@@ -30,6 +31,8 @@ namespace Esteira.Api.Controllers
         public sealed record AlterarAplicacaoRequest(string? Nome, string? Sigla, bool? Ativa);
 
         public sealed record CadastrarProjetoRequest(long? ProjetoGitLabId, string? Stack);
+
+        public sealed record DefinirWorkspaceRequest(long? ProjetoGitLabId);
 
         public sealed record VincularPapelRequest(string? Usuario, string? Papel);
 
@@ -83,6 +86,19 @@ namespace Esteira.Api.Controllers
         [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
         public async Task<Result<AplicacaoListaDto>> Alterar(Guid id, [FromBody] AlterarAplicacaoRequest corpo, CancellationToken cancellationToken)
             => await mediator.Send(new AlterarAplicacaoCommand(id, corpo.Nome ?? string.Empty, corpo.Sigla ?? string.Empty, corpo.Ativa), cancellationToken);
+
+        // P1.2: workspace da Aplicação. Flag própria Features:P1 (além da A1 do controller). `{ projetoGitLabId: null }` limpa.
+        [HttpPut("{id:guid}/workspace")]
+        [FeatureFlag("P1")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<Result> DefinirWorkspace(Guid id, [FromBody] DefinirWorkspaceRequest corpo, CancellationToken cancellationToken)
+            => await mediator.Send(new DefinirWorkspaceCommand(id, corpo.ProjetoGitLabId), cancellationToken);
 
         [HttpGet("{id:guid}/gitlab/projetos")]
         [ProducesResponseType<IReadOnlyList<ProjetoGitLabItemDto>>(StatusCodes.Status200OK)]

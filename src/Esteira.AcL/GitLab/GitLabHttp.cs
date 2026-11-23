@@ -29,6 +29,9 @@ namespace Esteira.AcL.GitLab
     {
         private const int PorPagina = 100;
         private const int MaximoDePaginas = 50;
+        private const int TituloMaximo = 200;
+        private const int DescricaoMaxima = 2000;
+        private const int DescricaoDaMaeMaxima = 10000;
 
         private static readonly Erro BotNaoConfigurado = new(
             "gitlab.bot-nao-configurado", "O bot do GitLab não está configurado para este grupo.", TipoErro.Failure);
@@ -122,6 +125,114 @@ namespace Esteira.AcL.GitLab
                 return Result<string?>.Falha(ErroDe(mensagem.StatusCode));
 
             return Result<string?>.Sucesso(await mensagem.Content.ReadAsStringAsync(cancellationToken));
+        }
+
+        public Task<Result<IReadOnlyList<IssueGitLabDto>>> ListarIssuesAsync(
+            string grupoCaminho, long projetoId, CancellationToken cancellationToken = default)
+            => ListarPaginadoAsync(grupoCaminho,
+                pagina => $"api/v4/projects/{projetoId}/issues?state=all&per_page={PorPagina}&page={pagina}",
+                item => new IssueGitLabDto(
+                    item.GetProperty("iid").GetInt64(),
+                    Cortar(item.GetProperty("title").GetString(), TituloMaximo)!,
+                    item.GetProperty("state").GetString()!,
+                    item.TryGetProperty("labels", out var l) && l.ValueKind == JsonValueKind.Array
+                        ? l.EnumerateArray().Select(x => x.GetString()!).ToList()
+                        : [],
+                    DescricaoDaMae(item)),
+                cancellationToken);
+
+        public Task<Result<IReadOnlyList<MergeRequestGitLabDto>>> ListarMergeRequestsAsync(
+            string grupoCaminho, long projetoId, CancellationToken cancellationToken = default)
+            => ListarPaginadoAsync(grupoCaminho,
+                pagina => $"api/v4/projects/{projetoId}/merge_requests?target_branch=main&state=all&per_page={PorPagina}&page={pagina}",
+                item => new MergeRequestGitLabDto(
+                    item.GetProperty("iid").GetInt64(),
+                    Cortar(item.GetProperty("title").GetString(), TituloMaximo)!,
+                    item.GetProperty("state").GetString()!,
+                    item.GetProperty("source_branch").GetString()!,
+                    item.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String
+                        ? Cortar(d.GetString(), DescricaoMaxima) : null,
+                    (item.TryGetProperty("head_pipeline", out var p) && p.ValueKind == JsonValueKind.Object
+                        && p.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String)
+                        ? st.GetString() : null),
+                cancellationToken);
+
+        public async Task<Result<ProjetoDoGrupoGitLabDto?>> ObterProjetoAsync(
+            string grupoCaminho, long projetoId, CancellationToken cancellationToken = default)
+        {
+            var resposta = await EnviarAsync(grupoCaminho, $"api/v4/projects/{projetoId}", cancellationToken);
+            if (resposta.Erro is not null)
+                return Result<ProjetoDoGrupoGitLabDto?>.Falha(resposta.Erro);
+
+            using var mensagem = resposta.Mensagem!;
+            if (mensagem.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+                return Result<ProjetoDoGrupoGitLabDto?>.Sucesso(null);
+
+            return await LerAsync<ProjetoDoGrupoGitLabDto?>(mensagem, async corpo =>
+            {
+                using var doc = await JsonDocument.ParseAsync(corpo, cancellationToken: cancellationToken);
+                var raiz = doc.RootElement;
+                var caminho = raiz.GetProperty("path_with_namespace").GetString()!;
+                return Result<ProjetoDoGrupoGitLabDto?>.Sucesso(new ProjetoDoGrupoGitLabDto(
+                    raiz.GetProperty("id").GetInt64(),
+                    caminho,
+                    raiz.GetProperty("name").GetString()!,
+                    raiz.TryGetProperty("default_branch", out var branch) && branch.ValueKind == JsonValueKind.String
+                        ? branch.GetString() : null,
+                    caminho.StartsWith(grupoCaminho + "/", StringComparison.OrdinalIgnoreCase)));
+            }, cancellationToken);
+        }
+
+        // Só a issue com label `em-execucao` carrega a descrição (bloco de execução da mãe); as outras não pagam o tráfego.
+        private static string? DescricaoDaMae(JsonElement item)
+        {
+            if (!item.TryGetProperty("labels", out var labels) || labels.ValueKind != JsonValueKind.Array
+                || !labels.EnumerateArray().Any(l => l.GetString() == "em-execucao"))
+                return null;
+
+            return item.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String
+                ? Cortar(d.GetString(), DescricaoDaMaeMaxima) : null;
+        }
+
+        private static string? Cortar(string? texto, int maximo)
+            => texto is not null && texto.Length > maximo ? texto[..maximo] : texto;
+
+        private async Task<Result<IReadOnlyList<T>>> ListarPaginadoAsync<T>(
+            string grupoCaminho, Func<int, string> url, Func<JsonElement, T> mapear, CancellationToken cancellationToken)
+        {
+            var itens = new List<T>();
+            var pagina = 1;
+
+            while (pagina <= MaximoDePaginas)
+            {
+                var resposta = await EnviarAsync(grupoCaminho, url(pagina), cancellationToken);
+                if (resposta.Erro is not null)
+                    return Result<IReadOnlyList<T>>.Falha(resposta.Erro);
+
+                using var mensagem = resposta.Mensagem!;
+                if (!mensagem.IsSuccessStatusCode)
+                    return Result<IReadOnlyList<T>>.Falha(ErroDe(mensagem.StatusCode));
+
+                try
+                {
+                    await using var corpo = await mensagem.Content.ReadAsStreamAsync(cancellationToken);
+                    using var doc = await JsonDocument.ParseAsync(corpo, cancellationToken: cancellationToken);
+                    foreach (var item in doc.RootElement.EnumerateArray())
+                        itens.Add(mapear(item));
+                }
+                catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+                {
+                    log.LogWarning("Resposta do GitLab fora do formato esperado ao listar ({Tipo}).", ex.GetType().Name);
+                    return Result<IReadOnlyList<T>>.Falha(Indisponivel);
+                }
+
+                var proxima = mensagem.Headers.TryGetValues("X-Next-Page", out var valores) ? valores.FirstOrDefault() : null;
+                if (!int.TryParse(proxima, out var numero) || numero <= pagina)
+                    break;
+                pagina = numero;
+            }
+
+            return Result<IReadOnlyList<T>>.Sucesso(itens);
         }
 
         private readonly record struct Resposta(HttpResponseMessage? Mensagem, Erro? Erro);
