@@ -18,6 +18,12 @@ namespace Esteira.Application.Fatias.Decisoes
         public static readonly Erro ReviewJaPedido = new(
             "fatia.review-ja-pedido", "O review desta Fatia já foi pedido.", TipoErro.Conflict);
 
+        // Aprovar com alguma MR aberta sem pipeline `success`: a mensagem lista as MRs (ex.: "api !3, frontend !8").
+        public static Erro CiNaoVerde(IEnumerable<MrAbertaDaFatia> mrs) => new(
+            "fatia.ci-nao-verde",
+            "Há MR aberta sem pipeline verde: " + string.Join(", ", mrs.Select(m => $"{PainelErros.Texto(m.Repositorio)} !{m.Iid}")) + ".",
+            TipoErro.Conflict);
+
         public static readonly Erro PessoaNaoRegistrada = new(
             "acesso.pessoa-nao-registrada", "Sua pessoa ainda não foi registrada na Esteira. Entre de novo.", TipoErro.Unauthorized);
     }

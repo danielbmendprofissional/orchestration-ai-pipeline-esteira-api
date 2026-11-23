@@ -74,6 +74,27 @@ namespace Esteira.Domain.Fatias
 
         public Result Cancelar(DateTime quando) => Transitar(EstadoAcaoBot.Pedida, EstadoAcaoBot.Cancelada, quando, null);
 
+        // API primeiro (ADR-0025): a Ação que depende de outra (a do front) só passa a executando com a dependência confirmada.
+        // Sem DependeDeAcaoId, inicia como Iniciar.
+        public Result IniciarAposDependencia(AcaoBotEntity? dependencia, DateTime quando)
+        {
+            if (DependeDeAcaoId is not null && (dependencia is null || dependencia.Id != DependeDeAcaoId || dependencia.Estado != EstadoAcaoBot.Confirmada))
+                return Result.Falha(new Erro("acao-bot.dependencia-nao-confirmada",
+                    "A ação depende de outra que ainda não foi confirmada.", TipoErro.Conflict));
+
+            return Iniciar(quando);
+        }
+
+        // Se a dependência (a Ação da API) falhou, esta Ação (a do front) é cancelada.
+        public Result CancelarSeDependenciaFalhou(AcaoBotEntity? dependencia, DateTime quando)
+        {
+            if (DependeDeAcaoId is null || dependencia is null || dependencia.Id != DependeDeAcaoId || dependencia.Estado != EstadoAcaoBot.Falhou)
+                return Result.Falha(new Erro("acao-bot.dependencia-nao-falhou",
+                    "A ação só é cancelada quando a ação de que depende falhou.", TipoErro.Conflict));
+
+            return Cancelar(quando);
+        }
+
         private Result Transitar(EstadoAcaoBot de, EstadoAcaoBot para, DateTime quando, string? codigoErro)
         {
             if (Estado != de)
