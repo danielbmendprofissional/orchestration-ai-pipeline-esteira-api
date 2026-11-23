@@ -37,6 +37,9 @@ namespace Esteira.Integration.Tests.Fatias
                 return Task.FromResult<IReadOnlyList<ResultadoDoPainel>>(aplicacoes.Select(a => Resultados[a.Chave]).ToList());
             }
 
+            public Task<ResultadoDoPainel> ObterFrescoAsync(AplicacaoDoPainel aplicacao, CancellationToken cancellationToken = default)
+                => Task.FromResult(Resultados[aplicacao.Chave]);
+
             public Task<Result> AtualizarAsync(AplicacaoDoPainel aplicacao, CancellationToken cancellationToken = default)
             {
                 Atualizadas.Add(aplicacao.Chave);

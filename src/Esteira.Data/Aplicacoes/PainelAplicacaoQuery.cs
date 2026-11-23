@@ -24,14 +24,14 @@ namespace Esteira.Data.Aplicacoes
             var projetos = (await contexto.Set<ProjetoEntity>()
                     .Where(p => ids.Contains(p.AplicacaoId) && p.Ativo && (p.Stack == Stack.Dotnet || p.Stack == Stack.Angular))
                     .OrderBy(p => p.Id)
-                    .Select(p => new { p.AplicacaoId, p.ProjetoGitLabId, p.Caminho, p.Stack })
+                    .Select(p => new { p.Id, p.AplicacaoId, p.ProjetoGitLabId, p.Caminho, p.Stack })
                     .ToListAsync(cancellationToken))
                 .ToLookup(p => p.AplicacaoId);
 
             return apps.Select(a => new AplicacaoNoPainel(
                 a.PublicId, a.Nome, a.Sigla, a.GrupoGitLabCaminho, a.WorkspaceGitLabId, a.WorkspaceGitLabCaminho,
                 projetos[a.Id].Select(p => new ProjetoNoPainel(
-                    p.Stack == Stack.Dotnet ? RepositorioFatia.Api : RepositorioFatia.Frontend, p.ProjetoGitLabId, p.Caminho)).ToList()))
+                    p.Stack == Stack.Dotnet ? RepositorioFatia.Api : RepositorioFatia.Frontend, p.ProjetoGitLabId, p.Caminho, p.Id)).ToList()))
                 .ToList();
         }
     }

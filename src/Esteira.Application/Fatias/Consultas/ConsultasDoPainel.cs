@@ -1,4 +1,5 @@
 using Esteira.Application.Aplicacoes;
+using Esteira.Application.Fatias.Decisoes;
 using Esteira.Application.Common.Paginacao;
 using Esteira.Application.Interfaces.Aplicacoes;
 using Esteira.Application.Interfaces.Usuario;
@@ -45,7 +46,7 @@ namespace Esteira.Application.Fatias.Consultas
             => texto is null ? string.Empty : texto.Length > maximo ? texto[..maximo] : texto;
     }
 
-    public sealed class ListarFatiasHandler(IPainelAplicacaoQuery aplicacoes, IPainelDeFatias painel, IUsuarioAtual usuario)
+    public sealed class ListarFatiasHandler(IPainelAplicacaoQuery aplicacoes, IPainelDeFatias painel, IUsuarioAtual usuario, RevisaoDoPainel? revisao = null)
         : IRequestHandler<ListarFatiasQuery, Result<PainelListaDto>>
     {
         private static readonly string[] Ordenaveis = ["aplicacao", "codigo", "titulo", "estado", "risco"];
@@ -81,6 +82,8 @@ namespace Esteira.Application.Fatias.Consultas
             var visiveis = await aplicacoes.ListarVisiveisAsync(usuario.Id, usuario.EhMor, cancellationToken);
             var escolhidas = Escolher(visiveis, request.Aplicacoes).OrderBy(a => a.Nome, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList();
 
+            var contextoRevisao = revisao is null ? ContextoDeRevisao.Desligado : await revisao.CarregarAsync(escolhidas, cancellationToken);
+
             var resultados = escolhidas.Count == 0
                 ? []
                 : await painel.ObterAsync(escolhidas.Select(a => a.Entrada).ToList(), cancellationToken);
@@ -110,7 +113,7 @@ namespace Esteira.Application.Fatias.Consultas
                     if (!DaAba(aba, f.Estado.Estado) || !CasaFatia(f, request.Fatia) || (projeto is { } p && !f.Repositorios.Contains(p)))
                         continue;
 
-                    linhas.Add((Linha(app, f), app.Nome, atual, f.Estado.Estado));
+                    linhas.Add((Linha(app, f, contextoRevisao.Montar(app, f)), app.Nome, atual, f.Estado.Estado));
                 }
             }
 
@@ -149,10 +152,10 @@ namespace Esteira.Application.Fatias.Consultas
                || f.Codigo.Contains(busca.Trim(), StringComparison.OrdinalIgnoreCase)
                || f.Titulo.Contains(busca.Trim(), StringComparison.OrdinalIgnoreCase);
 
-        private static FatiaDoPainelDto Linha(AplicacaoNoPainel app, FatiaLida f) => new(
+        private static FatiaDoPainelDto Linha(AplicacaoNoPainel app, FatiaLida f, RevisaoDaFatia? rev) => new(
             app.Id, app.Nome, app.Sigla, f.Codigo, PainelErros.Cortar(f.Titulo), PainelErros.Texto(f.Estado.Estado),
             f.Estado.Progresso, f.Estado.EmCorrecao, f.FormatoAnterior, f.Risco, PainelErros.Cortar(f.Status), f.StatusReconhecido,
-            f.Repositorios.Select(PainelErros.Texto).ToList(), f.SpecDisponivel);
+            f.Repositorios.Select(PainelErros.Texto).ToList(), f.SpecDisponivel, rev?.Acoes, rev?.Review, rev?.Decisao);
 
         private static List<FatiaDoPainelDto> Ordenar(
             List<(FatiaDoPainelDto Item, string Nome, int Ordem, EstadoDaFatia Estado)> linhas, string? campo, bool desc)
@@ -222,7 +225,7 @@ namespace Esteira.Application.Fatias.Consultas
         }
     }
 
-    public sealed class ObterGavetaHandler(IPainelAplicacaoQuery aplicacoes, IPainelDeFatias painel, IUsuarioAtual usuario, LinksDoGitLab links)
+    public sealed class ObterGavetaHandler(IPainelAplicacaoQuery aplicacoes, IPainelDeFatias painel, IUsuarioAtual usuario, LinksDoGitLab links, RevisaoDoPainel? revisao = null)
         : IRequestHandler<ObterGavetaQuery, Result<GavetaDto>>
     {
         public async Task<Result<GavetaDto>> Handle(ObterGavetaQuery request, CancellationToken cancellationToken)
@@ -239,10 +242,10 @@ namespace Esteira.Application.Fatias.Consultas
             var fatia = resultado.Fatias.FirstOrDefault(f => string.Equals(f.Codigo, request.Codigo, StringComparison.OrdinalIgnoreCase));
             return fatia is null
                 ? Result<GavetaDto>.Falha(PainelErros.FatiaNaoEncontrada)
-                : Result<GavetaDto>.Sucesso(Montar(app, fatia));
+                : Result<GavetaDto>.Sucesso(Montar(app, fatia, (revisao is null ? ContextoDeRevisao.Desligado : await revisao.CarregarAsync([app], cancellationToken)).Montar(app, fatia)));
         }
 
-        private GavetaDto Montar(AplicacaoNoPainel app, FatiaLida f)
+        private GavetaDto Montar(AplicacaoNoPainel app, FatiaLida f, RevisaoDaFatia? rev)
         {
             var d = f.Detalhe;
             var ws = app.WorkspaceCaminho;
@@ -279,7 +282,7 @@ namespace Esteira.Application.Fatias.Consultas
 
             return new GavetaDto(
                 app.Id, f.Codigo, PainelErros.Cortar(f.Titulo), PainelErros.Texto(f.Estado.Estado), f.Estado.Progresso,
-                f.Estado.EmCorrecao, f.FormatoAnterior, spec, mae, filhas, gaveta, tasks);
+                f.Estado.EmCorrecao, f.FormatoAnterior, spec, mae, filhas, gaveta, tasks, rev?.Acoes, rev?.Review, rev?.Decisao, rev?.Lista ?? []);
         }
 
         // Aberta > mergeada > fechada; dentro do grupo, a mais nova.

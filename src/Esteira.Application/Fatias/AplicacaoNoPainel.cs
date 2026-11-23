@@ -1,7 +1,7 @@
 namespace Esteira.Application.Fatias
 {
-    // Projeto de código ativo da Aplicação: `Caminho` é o caminho completo no GitLab (base dos links).
-    public sealed record ProjetoNoPainel(RepositorioFatia Repositorio, long GitLabId, string Caminho);
+    // Projeto de código ativo da Aplicação: `Caminho` é o caminho completo no GitLab (base dos links); `Id` é o id interno (FK da AcaoBot).
+    public sealed record ProjetoNoPainel(RepositorioFatia Repositorio, long GitLabId, string Caminho, long Id = 0);
 
     // Aplicação como o Painel a enxerga. `Id` é o PublicId (ADR-0014); o `long` interno não sai do banco.
     public sealed record AplicacaoNoPainel(

@@ -166,7 +166,9 @@ namespace Esteira.Integration.Tests.Fatias
         [Fact, DisplayName("Todas as rotas do FatiasController são GET, exceto POST fatias/atualizar")]
         public void ControllerSoExpoeGet()
         {
+            // As três rotas de decisão da P2 (atrás de Features:P2) só registram a Ação do bot; a prova de que a escrita no GitLab não existe é a P2.
             var rotas = typeof(FatiasController).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(m => m.GetCustomAttribute<Esteira.Api.Features.FeatureFlagAttribute>()?.Fatia != "P2")
                 .SelectMany(m => m.GetCustomAttributes<HttpMethodAttribute>(true))
                 .ToList();
 

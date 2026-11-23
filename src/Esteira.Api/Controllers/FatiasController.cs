@@ -3,6 +3,7 @@ using Esteira.Api.Features;
 using Esteira.Api.Paginacao;
 using Esteira.Application.Fatias;
 using Esteira.Application.Fatias.Consultas;
+using Esteira.Application.Fatias.Decisoes;
 using Esteira.Domain.Common.Resultados;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,8 @@ namespace Esteira.Api.Controllers
     [Route("api/v1")]
     public class FatiasController(IMediator mediator) : ControllerBase
     {
+        public sealed record ReprovarFatiaRequest(string? Comentario);
+
         // Lista paginada em memória sobre o instantâneo (ADR-0002). Diferente das outras listas, o body é um envelope
         // (`itens`, `avisos`, `aplicacoes`, `geradoEm`, `desatualizado`) porque o front precisa dos avisos por Aplicação,
         // inclusive das que não têm nenhuma Fatia; a página continua nos headers X-*.
@@ -66,5 +69,46 @@ namespace Esteira.Api.Controllers
         [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
         public async Task<Result<GavetaDto>> Gaveta(Guid id, string codigo, CancellationToken cancellationToken)
             => await mediator.Send(new ObterGavetaQuery(id, codigo), cancellationToken);
+
+        // P2: registram a decisão e pedem a Ação do bot (202); nada escreve no GitLab aqui (a execução é da P2b).
+        // Flag `Features:P2` (ausente = 404, mesmo para MOR). Sem papel na Aplicação: 404; com papel sem a operação: 403.
+        [HttpPost("aplicacoes/{id:guid}/fatias/{codigo}/review")]
+        [FeatureFlag("P2")]
+        [ProducesResponseType<AcoesPedidasDto>(StatusCodes.Status202Accepted)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> AbrirReview(Guid id, string codigo, CancellationToken cancellationToken)
+            => Aceito(await mediator.Send(new AbrirReviewCommand(id, codigo), cancellationToken));
+
+        [HttpPost("aplicacoes/{id:guid}/fatias/{codigo}/aprovar")]
+        [FeatureFlag("P2")]
+        [ProducesResponseType<AcoesPedidasDto>(StatusCodes.Status202Accepted)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> Aprovar(Guid id, string codigo, CancellationToken cancellationToken)
+            => Aceito(await mediator.Send(new AprovarFatiaCommand(id, codigo), cancellationToken));
+
+        // O comentário é texto do humano: nunca vai para log, e a validação (1 a 2000) é do comando.
+        [HttpPost("aplicacoes/{id:guid}/fatias/{codigo}/reprovar")]
+        [FeatureFlag("P2")]
+        [ProducesResponseType<AcoesPedidasDto>(StatusCodes.Status202Accepted)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> Reprovar(Guid id, string codigo, [FromBody] ReprovarFatiaRequest? corpo, CancellationToken cancellationToken)
+            => Aceito(await mediator.Send(new ReprovarFatiaCommand(id, codigo, corpo?.Comentario ?? string.Empty), cancellationToken));
+
+        private IActionResult Aceito(Result<AcoesPedidasDto> resultado)
+            => resultado.IsSuccess ? Accepted(resultado.Value) : new ObjectResult(resultado);
+
     }
 }

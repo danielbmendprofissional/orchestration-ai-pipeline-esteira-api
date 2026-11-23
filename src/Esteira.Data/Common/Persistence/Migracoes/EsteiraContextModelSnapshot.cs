@@ -393,6 +393,80 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                     b.ToTable("RegistroAuditoria", "esteira");
                 });
 
+            modelBuilder.Entity("Esteira.Domain.Fatias.AcaoBotEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AplicacaoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("AtualizadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChaveIdempotencia")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CodigoErro")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Comentario")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<long?>("DependeDeAcaoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FatiaCodigo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("MrIid")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("PedidaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("PedidaPorPessoaId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProjetoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChaveIdempotencia")
+                        .IsUnique();
+
+                    b.HasIndex("DependeDeAcaoId");
+
+                    b.HasIndex("PedidaPorPessoaId");
+
+                    b.HasIndex("ProjetoId");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("AplicacaoId", "FatiaCodigo");
+
+                    b.ToTable("AcaoBot", "esteira");
+                });
+
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.InboxState", b =>
                 {
                     b.Property<long>("Id")
@@ -618,6 +692,32 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .WithMany()
                         .HasForeignKey("AplicacaoId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Esteira.Domain.Fatias.AcaoBotEntity", b =>
+                {
+                    b.HasOne("Esteira.Domain.Aplicacoes.AplicacaoEntity", null)
+                        .WithMany()
+                        .HasForeignKey("AplicacaoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Esteira.Domain.Fatias.AcaoBotEntity", null)
+                        .WithMany()
+                        .HasForeignKey("DependeDeAcaoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Esteira.Domain.Aplicacoes.PessoaEntity", null)
+                        .WithMany()
+                        .HasForeignKey("PedidaPorPessoaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Esteira.Domain.Aplicacoes.ProjetoEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ProjetoId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
