@@ -4,6 +4,8 @@ using Esteira.Application.Common.Events;
 using Esteira.Application.Aplicacoes;
 using Esteira.Application.Interfaces.Aplicacoes;
 using Esteira.Application.Interfaces.Auditoria;
+using Esteira.Application.Interfaces.Fatias;
+using Esteira.Data.Fatias;
 using Esteira.Data.Aplicacoes;
 using Esteira.Application.Interfaces.Cache;
 using Esteira.Application.Interfaces.UnitOfWork;
@@ -35,6 +37,7 @@ namespace Esteira.IoC
             services.AddScoped<IPainelAplicacaoQuery, PainelAplicacaoQuery>();
             services.AddScoped<IProjetoRepositorio, ProjetoRepositorio>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
+            services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();
             services.AddScoped<IPapelQuery, PapelQuery>();
             services.AddScoped<IPessoaQuery, PessoaQuery>();
 
