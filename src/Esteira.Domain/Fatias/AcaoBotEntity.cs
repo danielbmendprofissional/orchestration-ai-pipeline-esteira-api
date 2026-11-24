@@ -31,13 +31,18 @@ namespace Esteira.Domain.Fatias
         public DateTime PedidaEm { get; private set; }
         public DateTime AtualizadaEm { get; private set; }
         public string? CodigoErro { get; private set; }
+        // P2b: pipeline criada pelo `abrir-review` (só Projeto Angular); é o que a consulta de status usa.
+        public long? PipelineId { get; private set; }
+        // P2b: a Ação falhada que esta repete (Reexecutar). Nula nas Ações normais.
+        public long? ReexecucaoDeAcaoId { get; private set; }
 
         public static string MontarChave(long aplicacaoId, string fatiaCodigo, TipoAcaoBot tipo, long projetoId, long mrIid, int tentativa)
             => $"{aplicacaoId}:{fatiaCodigo}:{NomeDoTipo(tipo)}:{projetoId}:{mrIid}:{tentativa}";
 
         public static Result<AcaoBotEntity> Criar(
             long aplicacaoId, string fatiaCodigo, long projetoId, long mrIid, TipoAcaoBot tipo, int tentativa,
-            long? dependeDeAcaoId, long pedidaPorPessoaId, string? comentario, DateTime pedidaEm)
+            long? dependeDeAcaoId, long pedidaPorPessoaId, string? comentario, DateTime pedidaEm,
+            long? reexecucaoDeAcaoId = null)
         {
             Guard.AgainstNullOrWhiteSpace(fatiaCodigo, nameof(fatiaCodigo));
             Guard.AgainstInvalidEnum<TipoAcaoBot>(tipo, nameof(tipo));
@@ -62,8 +67,18 @@ namespace Esteira.Domain.Fatias
                 PedidaPorPessoaId = pedidaPorPessoaId,
                 Comentario = comentario,
                 PedidaEm = pedidaEm,
-                AtualizadaEm = pedidaEm
+                AtualizadaEm = pedidaEm,
+                ReexecucaoDeAcaoId = reexecucaoDeAcaoId
             });
+        }
+
+        // Grava a pipeline que o GitLab criou para o `abrir-review`. Id inválido é erro de programação.
+        public void RegistrarPipeline(long pipelineId)
+        {
+            if (pipelineId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(pipelineId), "O id da pipeline precisa ser positivo.");
+
+            PipelineId = pipelineId;
         }
 
         public Result Iniciar(DateTime quando) => Transitar(EstadoAcaoBot.Pedida, EstadoAcaoBot.Executando, quando, null);

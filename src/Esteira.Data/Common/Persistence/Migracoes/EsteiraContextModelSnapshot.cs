@@ -438,11 +438,17 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                     b.Property<long>("PedidaPorPessoaId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("PipelineId")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("ProjetoId")
                         .HasColumnType("bigint");
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uuid");
+
+                    b.Property<long?>("ReexecucaoDeAcaoId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Tipo")
                         .IsRequired()
@@ -461,6 +467,8 @@ namespace Esteira.Data.Common.Persistence.Migracoes
 
                     b.HasIndex("PublicId")
                         .IsUnique();
+
+                    b.HasIndex("ReexecucaoDeAcaoId");
 
                     b.HasIndex("AplicacaoId", "FatiaCodigo");
 
@@ -719,6 +727,11 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .HasForeignKey("ProjetoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Esteira.Domain.Fatias.AcaoBotEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReexecucaoDeAcaoId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
