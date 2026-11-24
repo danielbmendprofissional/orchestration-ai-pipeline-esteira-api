@@ -44,6 +44,7 @@ namespace Esteira.IoC
             services.AddScoped<IOpcoesDeRevisao, OpcoesDeRevisao>();
             services.AddScoped<RevisaoDoPainel>();
             services.AddScoped<RegistrarProgressoDaAcao>();
+            services.AddScoped<ExecutorDeAcaoBot>();
             services.AddScoped<IPapelQuery, PapelQuery>();
             services.AddScoped<IPessoaQuery, PessoaQuery>();
 

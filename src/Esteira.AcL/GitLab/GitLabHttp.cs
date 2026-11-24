@@ -211,6 +211,48 @@ namespace Esteira.AcL.GitLab
             return await LerJsonAsync(mensagem, MapearMr, cancellationToken);
         }
 
+        public async Task<Result<IReadOnlyList<string>>> ListarNotasMergeRequestAsync(
+            string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default)
+        {
+            var notas = new List<string>();
+            var pagina = 1;
+
+            while (pagina <= MaximoDePaginas)
+            {
+                var resposta = await ExecutarAsync(
+                    grupoCaminho, HttpMethod.Get,
+                    $"api/v4/projects/{projetoId}/merge_requests/{mrIid}/notes?per_page={PorPagina}&page={pagina}",
+                    null, cancellationToken);
+                if (resposta.Erro is not null)
+                    return Result<IReadOnlyList<string>>.Falha(resposta.Erro);
+
+                using var mensagem = resposta.Mensagem!;
+                if (!mensagem.IsSuccessStatusCode)
+                    return Result<IReadOnlyList<string>>.Falha(ErroDeMr(mensagem.StatusCode));
+
+                try
+                {
+                    await using var corpo = await mensagem.Content.ReadAsStreamAsync(cancellationToken);
+                    using var doc = await JsonDocument.ParseAsync(corpo, cancellationToken: cancellationToken);
+                    foreach (var item in doc.RootElement.EnumerateArray())
+                        notas.Add(item.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String
+                            ? body.GetString() ?? string.Empty : string.Empty);
+                }
+                catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+                {
+                    log.LogWarning("Resposta do GitLab fora do formato esperado ao listar notas ({Tipo}).", ex.GetType().Name);
+                    return Result<IReadOnlyList<string>>.Falha(Indisponivel);
+                }
+
+                var proxima = mensagem.Headers.TryGetValues("X-Next-Page", out var valores) ? valores.FirstOrDefault() : null;
+                if (!int.TryParse(proxima, out var numero) || numero <= pagina)
+                    break;
+                pagina = numero;
+            }
+
+            return Result<IReadOnlyList<string>>.Sucesso(notas);
+        }
+
         public async Task<Result<long>> ComentarMergeRequestAsync(
             string grupoCaminho, long projetoId, long mrIid, string corpo, CancellationToken cancellationToken = default)
         {

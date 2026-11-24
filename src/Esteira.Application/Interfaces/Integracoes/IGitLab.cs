@@ -63,6 +63,11 @@ namespace Esteira.Application.Interfaces.Integracoes
         Task<Result<MergeRequestDaAcaoGitLabDto>> ObterMergeRequestAsync(
             string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default);
 
+        // Lê os corpos das notas da MR (paginado por dentro), para o executor procurar o marcador de idempotência
+        // `<!-- esteira-acao:<chave> -->` antes de comentar. 404 -> gitlab.mr-nao-encontrada; 401/403 -> gitlab.sem-permissao.
+        Task<Result<IReadOnlyList<string>>> ListarNotasMergeRequestAsync(
+            string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default);
+
         // Cria uma nota na MR e devolve o id dela. O corpo já vem formatado (o texto do humano entra citado).
         // 404 -> gitlab.mr-nao-encontrada; 401/403 -> gitlab.sem-permissao.
         Task<Result<long>> ComentarMergeRequestAsync(
