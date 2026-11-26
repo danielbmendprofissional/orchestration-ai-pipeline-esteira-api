@@ -107,6 +107,17 @@ namespace Esteira.Api.Controllers
         public async Task<IActionResult> Reprovar(Guid id, string codigo, [FromBody] ReprovarFatiaRequest? corpo, CancellationToken cancellationToken)
             => Aceito(await mediator.Send(new ReprovarFatiaCommand(id, codigo, corpo?.Comentario ?? string.Empty), cancellationToken));
 
+        // P2b: repete uma Ação do bot que falhou (cria a seguinte da mesma MR). Papel da operação do pedido original.
+        [HttpPost("aplicacoes/{id:guid}/fatias/{codigo}/acoes/{acaoId:guid}/reexecutar")]
+        [FeatureFlag("P2")]
+        [ProducesResponseType<AcoesPedidasDto>(StatusCodes.Status202Accepted)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> Reexecutar(Guid id, string codigo, Guid acaoId, CancellationToken cancellationToken)
+            => Aceito(await mediator.Send(new ReexecutarAcaoCommand(id, codigo, acaoId), cancellationToken));
+
         private IActionResult Aceito(Result<AcoesPedidasDto> resultado)
             => resultado.IsSuccess ? Accepted(resultado.Value) : new ObjectResult(resultado);
 

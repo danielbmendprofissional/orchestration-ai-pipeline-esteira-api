@@ -24,6 +24,30 @@ namespace Esteira.Integration.Tests.Aplicacoes
     {
         private sealed class GitLabFalso : IGitLab
         {
+            public Task<Result<MergeRequestDaAcaoGitLabDto>> ObterMergeRequestAsync( string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<IReadOnlyList<string>>> ListarNotasMergeRequestAsync( string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<long>> ComentarMergeRequestAsync( string grupoCaminho, long projetoId, long mrIid, string corpo, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<MergeRequestDaAcaoGitLabDto>> FecharMergeRequestAsync( string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<MergeRequestDaAcaoGitLabDto>> ReabrirMergeRequestAsync( string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<MergeRequestDaAcaoGitLabDto>> MergearMergeRequestAsync( string grupoCaminho, long projetoId, long mrIid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<TriggerTokenGitLabDto>> CriarTriggerTokenAsync( string grupoCaminho, long projetoId, string descricao, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<IReadOnlyList<TriggerTokenListadoGitLabDto>>> ListarTriggerTokensAsync( string grupoCaminho, long projetoId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result> ApagarTriggerTokenAsync( string grupoCaminho, long projetoId, long triggerTokenId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<long>> CriarPipelinePorTriggerAsync( string grupoCaminho, long projetoId, string triggerToken, string referencia, IReadOnlyDictionary<string, string> variaveis, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<PipelineGitLabDto>> ObterPipelineAsync( string grupoCaminho, long projetoId, long pipelineId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+            public Task<Result<PipelineGitLabDto>> CancelarPipelineAsync( string grupoCaminho, long projetoId, long pipelineId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
             public Dictionary<string, GrupoGitLabDto> Grupos { get; } = new(StringComparer.OrdinalIgnoreCase);
 
             public Task<Result<GrupoGitLabDto>> ObterGrupoAsync(string caminho, CancellationToken cancellationToken = default)

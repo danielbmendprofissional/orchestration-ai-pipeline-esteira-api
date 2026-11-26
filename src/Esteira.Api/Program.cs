@@ -6,6 +6,9 @@ using Esteira.Application.Interfaces.Usuario;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
 using Esteira.IoC.Configuracoes;
+using Esteira.Messaging;
+using Esteira.Messaging.Consumers;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -95,7 +98,11 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
 builder.Services.AddSessaoRedis(builder.Configuration);
-builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction());
+// Consumer da Ação do bot (P2b.2–P2b.4): executa abrir-review, aprovar e reprovar no GitLab, com retry das falhas transitórias.
+builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction(),
+    x => x.AddConsumer<AcaoBotPedidaConsumer, AcaoBotPedidaConsumerDefinition>());
+// Consulta periódica do status da pipeline do `abrir-review` (P2b.3): confirma/falha a Ação quando o preview termina.
+builder.Services.AddHostedService<ConsultaDePipelinesService>();
 builder.Services.AddDependencyInjection();
 builder.Services.AddGitLab(builder.Configuration);
 builder.Services.AddPainelDeFatias(builder.Configuration);

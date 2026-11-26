@@ -14,11 +14,20 @@ namespace Esteira.Application.Interfaces.Fatias
         Task<IReadOnlyDictionary<Guid, IReadOnlyList<AcaoNaFatia>>> ListarAsync(IReadOnlyList<Guid> aplicacoes, CancellationToken cancellationToken = default);
     }
 
-    // Flag `Features:P2` e `Review:UrlModelo`, lidos da configuração a cada uso (nada é fixado na partida).
+    // Flag `Features:P2` e `Review:*`, lidos da configuração a cada uso (nada é fixado na partida).
+    // PrazoMinutos: `Review:PrazoMinutos` (padrão 30) — prazo máximo do preview antes de falhar e cancelar.
+    // IntervaloConsultaSegundos: `Review:IntervaloConsultaSegundos` (padrão 15) — intervalo da consulta periódica.
     public interface IOpcoesDeRevisao
     {
         bool Ligado { get; }
 
         string? UrlModelo { get; }
+
+        int PrazoMinutos { get; }
+
+        int IntervaloConsultaSegundos { get; }
+
+        // `Bot:TentativasMaximas` (padrão 3): tentativas totais de uma Ação contra falha transitória do GitLab.
+        int TentativasMaximas { get; }
     }
 }

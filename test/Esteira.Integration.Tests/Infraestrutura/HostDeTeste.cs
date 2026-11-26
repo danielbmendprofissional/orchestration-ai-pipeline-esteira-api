@@ -1,9 +1,11 @@
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
+using Esteira.Messaging;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Esteira.Integration.Tests.Infraestrutura
@@ -22,6 +24,9 @@ namespace Esteira.Integration.Tests.Infraestrutura
             builder.Services.AddDbContext<EsteiraContext>(options => options.UsarPostgres(infra.ConnectionString));
             builder.Services.AddMensageria(builder.Configuration, producao: false, consumidores);
             builder.Services.AddDependencyInjection();
+
+            // A consulta periódica da pipeline (P2b.3) bateria no GitLab real: os testes de integração a removem do host.
+            builder.Services.RemoveAll<ConsultaDePipelinesService>();
 
             return builder.Build();
         }

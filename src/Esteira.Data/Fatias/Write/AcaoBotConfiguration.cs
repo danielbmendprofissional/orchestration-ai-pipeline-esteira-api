@@ -24,6 +24,8 @@ namespace Esteira.Data.Fatias.Write
             b.HasOne<ProjetoEntity>().WithMany().HasForeignKey(x => x.ProjetoId).OnDelete(DeleteBehavior.Restrict);
             b.HasOne<PessoaEntity>().WithMany().HasForeignKey(x => x.PedidaPorPessoaId).OnDelete(DeleteBehavior.Restrict);
             b.HasOne<AcaoBotEntity>().WithMany().HasForeignKey(x => x.DependeDeAcaoId).OnDelete(DeleteBehavior.Restrict);
+            // P2b: a Ação que esta repete (Reexecutar); opcional, Restrict como a dependência.
+            b.HasOne<AcaoBotEntity>().WithMany().HasForeignKey(x => x.ReexecucaoDeAcaoId).OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

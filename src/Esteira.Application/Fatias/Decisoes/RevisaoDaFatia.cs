@@ -18,7 +18,7 @@ namespace Esteira.Application.Fatias.Decisoes
     // `Comentario` só na Ação de Reprovar (texto do humano, nunca HTML).
     public sealed record AcaoDaFatiaDto(
         Guid Id, string Tipo, string Estado, string? Repositorio, long MrIid, string? PedidaPor, DateTime PedidaEm, DateTime AtualizadaEm,
-        string? CodigoErro, string? Comentario);
+        string? CodigoErro, string? Comentario, PermissaoDaAcaoDto PodeReexecutar);
 
     // `Decisao`: nenhuma | aprovando | reprovando | falhou.
     public sealed record RevisaoDaFatia(AcoesDaFatiaDto Acoes, ReviewDaFatiaDto Review, string Decisao, IReadOnlyList<AcaoDaFatiaDto> Lista);
@@ -32,6 +32,8 @@ namespace Esteira.Application.Fatias.Decisoes
         public const string CiNaoVerde = "ci-nao-verde";
         public const string DecisaoEmAndamento = "decisao-em-andamento";
         public const string ReviewJaPedido = "review-ja-pedido";
+        public const string NaoFalhou = "nao-falhou";
+        public const string NaoEUltima = "nao-e-a-ultima";
 
         private static readonly PermissaoDaAcaoDto Sim = new(true, null);
 
@@ -68,9 +70,27 @@ namespace Esteira.Application.Fatias.Decisoes
                 : null);
             var podeReprovar = Barrar(OperacaoAplicacao.DecidirFatia, () => emAndamento ? new(false, DecisaoEmAndamento) : null);
 
+            // Reexecutar (P2b): papel da operação do pedido original, falhou, última do tipo na MR, MR ainda aberta e, nas decisões,
+            // nenhuma outra em andamento. As mesmas regras do comando; o comando relê tudo no GitLab e no banco.
+            PermissaoDaAcaoDto PodeReexecutar(AcaoNaFatia a)
+            {
+                var operacao = a.Tipo == TipoAcaoBot.AbrirReview ? OperacaoAplicacao.AbrirReview : OperacaoAplicacao.DecidirFatia;
+                if (!acesso.Pode(operacao))
+                    return new(false, Papel);
+                if (a.Estado != EstadoAcaoBot.Falhou)
+                    return new(false, NaoFalhou);
+                if (daFatia.Skip(daFatia.IndexOf(a) + 1).Any(x => x.Tipo == a.Tipo && x.ProjetoId == a.ProjetoId && x.MrIid == a.MrIid))
+                    return new(false, NaoEUltima);
+                if (!abertas.Any(m => m.Iid == a.MrIid && app.Projetos.FirstOrDefault(p => p.Repositorio == m.Repositorio)?.Id == a.ProjetoId))
+                    return new(false, SemMrAberta);
+                if (a.Tipo is TipoAcaoBot.Aprovar or TipoAcaoBot.Reprovar && emAndamento)
+                    return new(false, DecisaoEmAndamento);
+                return Sim;
+            }
+
             var lista = daFatia.Select(a => new AcaoDaFatiaDto(
                 a.Id, EnumKebab.Texto(a.Tipo), EnumKebab.Texto(a.Estado), a.Repositorio is { } r ? PainelErros.Texto(r) : null, a.MrIid,
-                a.PedidaPor, a.PedidaEm, a.AtualizadaEm, a.CodigoErro, a.Tipo == TipoAcaoBot.Reprovar ? a.Comentario : null)).ToList();
+                a.PedidaPor, a.PedidaEm, a.AtualizadaEm, a.CodigoErro, a.Tipo == TipoAcaoBot.Reprovar ? a.Comentario : null, PodeReexecutar(a))).ToList();
 
             return new RevisaoDaFatia(new AcoesDaFatiaDto(podeAbrir, podeAprovar, podeReprovar), review, decisao, lista);
         }
