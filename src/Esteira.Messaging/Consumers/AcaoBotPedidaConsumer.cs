@@ -31,6 +31,11 @@ namespace Esteira.Messaging.Consumers
                     log.LogInformation("Ação {Acao} aguardando a Ação da API confirmar; será republicada.", acaoId);
                     break;
 
+                // abrir-review Angular: a pipeline foi criada; a consulta periódica é quem conclui a Ação. Sem retry.
+                case SituacaoDaExecucao.AguardandoPipeline:
+                    log.LogInformation("Ação {Acao} aguardando o fim da pipeline do preview.", acaoId);
+                    break;
+
                 case SituacaoDaExecucao.NaoImplementada:
                     log.LogInformation("Ação {Acao} do tipo {Tipo} ainda não é executada (P2b.3).", acaoId, context.Message.Tipo);
                     break;

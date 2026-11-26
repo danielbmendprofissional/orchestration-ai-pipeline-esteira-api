@@ -6,6 +6,7 @@ using Esteira.Application.Interfaces.Usuario;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
 using Esteira.IoC.Configuracoes;
+using Esteira.Messaging;
 using Esteira.Messaging.Consumers;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication;
@@ -100,6 +101,8 @@ builder.Services.AddSessaoRedis(builder.Configuration);
 // Consumer da Ação do bot (P2b.2): executa aprovar/reprovar no GitLab. Abrir review (P2b.3) entra depois.
 builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction(),
     x => x.AddConsumer<AcaoBotPedidaConsumer, AcaoBotPedidaConsumerDefinition>());
+// Consulta periódica do status da pipeline do `abrir-review` (P2b.3): confirma/falha a Ação quando o preview termina.
+builder.Services.AddHostedService<ConsultaDePipelinesService>();
 builder.Services.AddDependencyInjection();
 builder.Services.AddGitLab(builder.Configuration);
 builder.Services.AddPainelDeFatias(builder.Configuration);

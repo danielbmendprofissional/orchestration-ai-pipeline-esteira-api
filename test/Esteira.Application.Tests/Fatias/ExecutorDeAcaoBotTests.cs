@@ -81,10 +81,15 @@ namespace Esteira.Application.Tests.Fatias
             public override DateTimeOffset GetUtcNow() => new(Agora);
         }
 
-        private ExecutorDeAcaoBot Executor() => new(
-            _acoes, _aplicacoes, _projetos, _pessoas, _gitlab,
-            new RegistrarProgressoDaAcao(_acoes, _acesso, _uow, _auditoria, _painel, new RelogioFixo()),
-            _publicador, _log);
+        private ExecutorDeAcaoBot Executor()
+        {
+            var relogio = new RelogioFixo();
+            var progresso = new RegistrarProgressoDaAcao(_acoes, _acesso, _uow, _auditoria, _painel, relogio);
+            var contexto = new ContextoGitLabDaAcao(_aplicacoes, _projetos, new FakeLogger<ContextoGitLabDaAcao>());
+            var conclusao = new ConclusaoDaAcaoBot(
+                _acoes, _aplicacoes, _projetos, _gitlab, progresso, _publicador, new FakeLogger<ConclusaoDaAcaoBot>());
+            return new ExecutorDeAcaoBot(_acoes, _pessoas, _gitlab, progresso, contexto, conclusao, _uow, relogio, _log);
+        }
 
         private AcaoBotEntity Acao(
             long id, TipoAcaoBot tipo = TipoAcaoBot.Aprovar, long projeto = ProjetoApi, long mrIid = 3,

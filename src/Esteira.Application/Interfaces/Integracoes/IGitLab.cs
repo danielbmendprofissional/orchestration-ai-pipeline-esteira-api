@@ -31,6 +31,10 @@ namespace Esteira.Application.Interfaces.Integracoes
     // Status de uma pipeline por id (`success`, `failed`, `running`, `pending`...).
     public sealed record PipelineGitLabDto(long Id, string Status);
 
+    // Trigger token existente no Projeto (usado pela limpeza dos tokens `esteira-acao-*` com mais de uma hora).
+    // O valor do token NÃO vem nesta listagem e nunca é logado.
+    public sealed record TriggerTokenListadoGitLabDto(long Id, string Description, DateTimeOffset CreatedAt);
+
     // Porta do GitLab (leitura A1; escrita só como Ação do bot, ADR-0010). O token do bot é por grupo
     // (`GitLab:Bots:<caminho-do-grupo>:Token`), por isso toda chamada leva o caminho do grupo raiz da Aplicação.
     // Erros (leitura): gitlab.bot-nao-configurado, gitlab.grupo-nao-encontrado, gitlab.indisponivel.
@@ -90,6 +94,11 @@ namespace Esteira.Application.Interfaces.Integracoes
         Task<Result<TriggerTokenGitLabDto>> CriarTriggerTokenAsync(
             string grupoCaminho, long projetoId, string descricao, CancellationToken cancellationToken = default);
 
+        // Lista os trigger tokens do Projeto (paginado por dentro), para a limpeza dos `esteira-acao-*` antigos.
+        // A listagem não devolve o valor do token. 401/403 -> gitlab.sem-permissao.
+        Task<Result<IReadOnlyList<TriggerTokenListadoGitLabDto>>> ListarTriggerTokensAsync(
+            string grupoCaminho, long projetoId, CancellationToken cancellationToken = default);
+
         // Apaga o trigger token do Projeto. Sucesso também quando ele já não existe (404): apagar é idempotente.
         Task<Result> ApagarTriggerTokenAsync(
             string grupoCaminho, long projetoId, long triggerTokenId, CancellationToken cancellationToken = default);
@@ -102,6 +111,11 @@ namespace Esteira.Application.Interfaces.Integracoes
 
         // GET no status da pipeline por id.
         Task<Result<PipelineGitLabDto>> ObterPipelineAsync(
+            string grupoCaminho, long projetoId, long pipelineId, CancellationToken cancellationToken = default);
+
+        // Cancela a pipeline por id (usado quando o prazo do preview esgota). Devolve o status informado.
+        // Sem código próprio para 404 (pipeline já sumiu): cai em gitlab.indisponivel, como os outros endpoints de pipeline.
+        Task<Result<PipelineGitLabDto>> CancelarPipelineAsync(
             string grupoCaminho, long projetoId, long pipelineId, CancellationToken cancellationToken = default);
     }
 }

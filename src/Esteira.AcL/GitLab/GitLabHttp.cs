@@ -364,9 +364,72 @@ namespace Esteira.AcL.GitLab
             if (!mensagem.IsSuccessStatusCode)
                 return Result<PipelineGitLabDto>.Falha(ErroDeEscritaDoProjeto(mensagem.StatusCode));
 
-            return await LerJsonAsync(mensagem, raiz => new PipelineGitLabDto(
-                raiz.GetProperty("id").GetInt64(), raiz.GetProperty("status").GetString()!), cancellationToken);
+            return await LerJsonAsync(mensagem, MapearPipeline, cancellationToken);
         }
+
+        public async Task<Result<PipelineGitLabDto>> CancelarPipelineAsync(
+            string grupoCaminho, long projetoId, long pipelineId, CancellationToken cancellationToken = default)
+        {
+            var resposta = await ExecutarAsync(
+                grupoCaminho, HttpMethod.Post, $"api/v4/projects/{projetoId}/pipelines/{pipelineId}/cancel", null, cancellationToken);
+            if (resposta.Erro is not null)
+                return Result<PipelineGitLabDto>.Falha(resposta.Erro);
+
+            using var mensagem = resposta.Mensagem!;
+            if (!mensagem.IsSuccessStatusCode)
+                return Result<PipelineGitLabDto>.Falha(ErroDeEscritaDoProjeto(mensagem.StatusCode));
+
+            return await LerJsonAsync(mensagem, MapearPipeline, cancellationToken);
+        }
+
+        public async Task<Result<IReadOnlyList<TriggerTokenListadoGitLabDto>>> ListarTriggerTokensAsync(
+            string grupoCaminho, long projetoId, CancellationToken cancellationToken = default)
+        {
+            var tokens = new List<TriggerTokenListadoGitLabDto>();
+            var pagina = 1;
+
+            while (pagina <= MaximoDePaginas)
+            {
+                var resposta = await ExecutarAsync(
+                    grupoCaminho, HttpMethod.Get,
+                    $"api/v4/projects/{projetoId}/triggers?per_page={PorPagina}&page={pagina}", null, cancellationToken);
+                if (resposta.Erro is not null)
+                    return Result<IReadOnlyList<TriggerTokenListadoGitLabDto>>.Falha(resposta.Erro);
+
+                using var mensagem = resposta.Mensagem!;
+                if (!mensagem.IsSuccessStatusCode)
+                    return Result<IReadOnlyList<TriggerTokenListadoGitLabDto>>.Falha(ErroDeEscritaDoProjeto(mensagem.StatusCode));
+
+                try
+                {
+                    await using var corpo = await mensagem.Content.ReadAsStreamAsync(cancellationToken);
+                    using var doc = await JsonDocument.ParseAsync(corpo, cancellationToken: cancellationToken);
+                    foreach (var item in doc.RootElement.EnumerateArray())
+                        tokens.Add(new TriggerTokenListadoGitLabDto(
+                            item.GetProperty("id").GetInt64(),
+                            item.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String
+                                ? d.GetString() ?? string.Empty : string.Empty,
+                            item.TryGetProperty("created_at", out var c) && c.ValueKind == JsonValueKind.String
+                                ? DateTimeOffset.Parse(c.GetString()!, System.Globalization.CultureInfo.InvariantCulture)
+                                : DateTimeOffset.MinValue));
+                }
+                catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+                {
+                    log.LogWarning("Resposta do GitLab fora do formato esperado ao listar trigger tokens ({Tipo}).", ex.GetType().Name);
+                    return Result<IReadOnlyList<TriggerTokenListadoGitLabDto>>.Falha(Indisponivel);
+                }
+
+                var proxima = mensagem.Headers.TryGetValues("X-Next-Page", out var valores) ? valores.FirstOrDefault() : null;
+                if (!int.TryParse(proxima, out var numero) || numero <= pagina)
+                    break;
+                pagina = numero;
+            }
+
+            return Result<IReadOnlyList<TriggerTokenListadoGitLabDto>>.Sucesso(tokens);
+        }
+
+        private static PipelineGitLabDto MapearPipeline(JsonElement raiz)
+            => new(raiz.GetProperty("id").GetInt64(), raiz.GetProperty("status").GetString()!);
 
         private async Task<Result<MergeRequestDaAcaoGitLabDto>> AlterarEstadoMrAsync(
             string grupoCaminho, long projetoId, long mrIid, string stateEvent, CancellationToken cancellationToken)
