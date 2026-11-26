@@ -381,5 +381,64 @@ namespace Esteira.Application.Tests.Fatias
             await _gitlab.DidNotReceive().ObterMergeRequestAsync(Grupo, ProjetoGitLabFront, 8, Arg.Any<CancellationToken>());
             _gitlab.DidNotReceiveWithAnyArgs().FecharMergeRequestAsync(default, default, default, default);
         }
+
+        // ---- P2b.4, critério 9: retry das falhas transitórias e códigos de erro definitivos ----
+
+        [Fact, DisplayName("9: transitório antes do limite devolve transitório e a Ação segue executando")]
+        public async Task Transitorio_antes_do_limite_repete()
+        {
+            var acao = Acao(1);
+            MrFalha(ProjetoGitLabApi, Erro("gitlab.indisponivel"));
+
+            var r = await Executor().ExecutarAsync(acao.PublicId, 2, 3, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Transitoria);
+            acao.Estado.Should().Be(EstadoAcaoBot.Executando);
+        }
+
+        [Theory, DisplayName("9: transitório na última tentativa (rede/5xx ou 429) vira falhou com gitlab.indisponivel e descarta o instantâneo")]
+        [InlineData("gitlab.indisponivel", TipoErro.Failure)]
+        [InlineData("gitlab.limite-de-requisicoes", TipoErro.TooManyRequests)]
+        public async Task Transitorio_esgotado_falha_com_indisponivel(string codigo, TipoErro tipo)
+        {
+            var acao = Acao(1);
+            MrFalha(ProjetoGitLabApi, Erro(codigo, tipo));
+
+            var r = await Executor().ExecutarAsync(acao.PublicId, 3, 3, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Falhou);
+            r.CodigoErro.Should().Be("gitlab.indisponivel");
+            acao.Estado.Should().Be(EstadoAcaoBot.Falhou);
+            acao.CodigoErro.Should().Be("gitlab.indisponivel");
+            await _painel.Received(1).DescartarAsync(_appPublicId.ToString(), Arg.Any<CancellationToken>());
+        }
+
+        [Theory, DisplayName("9: erro definitivo não repete: falha na primeira tentativa e grava o código")]
+        [InlineData("gitlab.sem-permissao", TipoErro.Forbidden)]
+        [InlineData("gitlab.mr-nao-encontrada", TipoErro.NotFound)]
+        [InlineData("gitlab.merge-recusado", TipoErro.Conflict)]
+        public async Task Definitivo_nao_repete(string codigo, TipoErro tipo)
+        {
+            var acao = Acao(1);
+            MrFalha(ProjetoGitLabApi, Erro(codigo, tipo));
+
+            var r = await Executor().ExecutarAsync(acao.PublicId, 1, 3, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Falhou);
+            acao.Estado.Should().Be(EstadoAcaoBot.Falhou);
+            acao.CodigoErro.Should().Be(codigo);
+        }
+
+        [Fact, DisplayName("9: MR fechada no aprovar não repete e grava gitlab.mr-nao-esta-aberta")]
+        public async Task Mr_fechada_grava_codigo()
+        {
+            var acao = Acao(1);
+            Mr(ProjetoGitLabApi, "closed", "success");
+
+            var r = await Executor().ExecutarAsync(acao.PublicId, 1, 3, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Falhou);
+            acao.CodigoErro.Should().Be("gitlab.mr-nao-esta-aberta");
+        }
     }
 }

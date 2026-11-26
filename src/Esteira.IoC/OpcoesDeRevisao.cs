@@ -14,6 +14,8 @@ namespace Esteira.IoC
 
         public int IntervaloConsultaSegundos => InteiroPositivo("Review:IntervaloConsultaSegundos", 15);
 
+        public int TentativasMaximas => InteiroPositivo("Bot:TentativasMaximas", 3);
+
         // Valor ausente ou inválido cai no padrão; zero ou negativo não faz sentido para um prazo/intervalo.
         private int InteiroPositivo(string chave, int padrao)
             => int.TryParse(configuracao[chave], out var valor) && valor > 0 ? valor : padrao;

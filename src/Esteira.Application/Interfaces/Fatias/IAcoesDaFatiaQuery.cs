@@ -26,5 +26,8 @@ namespace Esteira.Application.Interfaces.Fatias
         int PrazoMinutos { get; }
 
         int IntervaloConsultaSegundos { get; }
+
+        // `Bot:TentativasMaximas` (padrão 3): tentativas totais de uma Ação contra falha transitória do GitLab.
+        int TentativasMaximas { get; }
     }
 }

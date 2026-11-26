@@ -1,11 +1,13 @@
 using Esteira.Application.Fatias.Decisoes;
+using Esteira.Application.Interfaces.Fatias;
 using MassTransit;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Esteira.Messaging.Consumers
 {
     // Sinaliza erro transitório do GitLab: a mensagem falha para a política de retry do endpoint reentregá-la
-    // (o executor, ao retomar uma Ação executando, é idempotente). P2b.4 formaliza backoff/limite e a virada para falhou.
+    // (o executor, ao retomar uma Ação executando, é idempotente). Na última tentativa o executor já grava falhou.
     public sealed class AcaoBotTransitoriaException(string codigo)
         : Exception($"Falha transitória ao executar a Ação do bot ({codigo}).")
     {
@@ -14,13 +16,16 @@ namespace Esteira.Messaging.Consumers
     // Consumer fino da Ação do bot (spec P2b): o executor decide e escreve no GitLab; aqui só se traduz o resultado
     // para a mensagem. Aguardando dependência não escreve nada e não falha: a Ação do front será republicada quando a
     // da API confirmar.
-    public sealed class AcaoBotPedidaConsumer(ExecutorDeAcaoBot executor, ILogger<AcaoBotPedidaConsumer> log)
+    public sealed class AcaoBotPedidaConsumer(
+        ExecutorDeAcaoBot executor, IOpcoesDeRevisao opcoes, ILogger<AcaoBotPedidaConsumer> log)
         : IConsumer<AcaoBotPedida>
     {
         public async Task Consume(ConsumeContext<AcaoBotPedida> context)
         {
             var acaoId = context.Message.AcaoId;
-            var resultado = await executor.ExecutarAsync(acaoId, context.CancellationToken);
+            // Tentativa atual = reentregas já feitas + 1; esgotado o Bot:TentativasMaximas o executor grava falhou.
+            var resultado = await executor.ExecutarAsync(
+                acaoId, context.GetRetryAttempt() + 1, opcoes.TentativasMaximas, context.CancellationToken);
 
             switch (resultado.Situacao)
             {
@@ -55,7 +60,19 @@ namespace Esteira.Messaging.Consumers
         }
     }
 
-    // Retry básico só para o transitório (P2b.4 formaliza a política). Sem elemento novo: retry em memória do MassTransit.
+    // Política de retry da Ação do bot (critério 9): `Bot:TentativasMaximas` tentativas no total, espera crescente.
+    public static class PoliticaDeRetryDaAcaoBot
+    {
+        private static readonly TimeSpan EsperaInicial = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan EsperaMaxima = TimeSpan.FromSeconds(30);
+
+        public static int Reentregas(int tentativasMaximas) => Math.Max(0, tentativasMaximas - 1);
+
+        // 2s, 4s, 8s... até 30s.
+        public static TimeSpan Espera(int reentrega)
+            => TimeSpan.FromTicks(Math.Min(EsperaMaxima.Ticks, EsperaInicial.Ticks << Math.Min(Math.Max(reentrega, 1) - 1, 10)));
+    }
+
     public sealed class AcaoBotPedidaConsumerDefinition : ConsumerDefinition<AcaoBotPedidaConsumer>
     {
         protected override void ConfigureConsumer(
@@ -63,7 +80,12 @@ namespace Esteira.Messaging.Consumers
             IConsumerConfigurator<AcaoBotPedidaConsumer> consumerConfigurator,
             IRegistrationContext context)
         {
-            endpointConfigurator.UseMessageRetry(r => r.Exponential(3, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
+            var tentativas = int.TryParse((context.GetService(typeof(IConfiguration)) as IConfiguration)?["Bot:TentativasMaximas"], out var n) && n > 0 ? n : 3;
+            var reentregas = PoliticaDeRetryDaAcaoBot.Reentregas(tentativas);
+            if (reentregas > 0)
+                endpointConfigurator.UseMessageRetry(r => r
+                    .Intervals(Enumerable.Range(1, reentregas).Select(PoliticaDeRetryDaAcaoBot.Espera).ToArray())
+                    .Handle<AcaoBotTransitoriaException>());
         }
     }
 }

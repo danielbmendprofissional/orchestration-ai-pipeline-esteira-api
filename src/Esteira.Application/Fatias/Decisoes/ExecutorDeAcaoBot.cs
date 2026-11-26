@@ -61,6 +61,19 @@ namespace Esteira.Application.Fatias.Decisoes
         private const string DescricaoDoToken = "esteira-acao-";
         private static readonly TimeSpan JanelaDeLimpeza = TimeSpan.FromHours(1);
 
+        // Retry (critério 9): o consumer conta as tentativas; transitório na última vira falhou com gitlab.indisponivel
+        // (esgotado). Antes do limite devolve Transitoria e a Ação segue executando. Definitivo já falha na hora.
+        public async Task<ResultadoDaExecucao> ExecutarAsync(
+            Guid acaoPublicId, int tentativa, int tentativasMaximas, CancellationToken cancellationToken = default)
+        {
+            var resultado = await ExecutarAsync(acaoPublicId, cancellationToken);
+            if (resultado.Situacao != SituacaoDaExecucao.Transitoria || tentativa < tentativasMaximas)
+                return resultado;
+
+            log.LogWarning("Ação {Acao}: GitLab indisponível depois de {Tentativas} tentativas.", acaoPublicId, tentativa);
+            return await conclusao.FalharAsync(acaoPublicId, CodigoIndisponivel, cancellationToken);
+        }
+
         public async Task<ResultadoDaExecucao> ExecutarAsync(Guid acaoPublicId, CancellationToken cancellationToken = default)
         {
             var acao = await acoes.ObterPorPublicIdAsync(acaoPublicId, cancellationToken);
