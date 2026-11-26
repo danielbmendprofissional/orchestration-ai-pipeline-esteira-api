@@ -57,7 +57,7 @@ namespace Esteira.Integration.Tests.Fatias
             schemas["PermissaoDaAcaoDto"]!["properties"]!.AsObject().Select(p => p.Key).Should().BeEquivalentTo("pode", "motivo");
             schemas["ReviewDaFatiaDto"]!["properties"]!.AsObject().Select(p => p.Key).Should().BeEquivalentTo("estado", "link");
             schemas["AcaoDaFatiaDto"]!["properties"]!.AsObject().Select(p => p.Key)
-                .Should().BeEquivalentTo("id", "tipo", "estado", "repositorio", "mrIid", "pedidaPor", "pedidaEm", "atualizadaEm", "codigoErro", "comentario");
+                .Should().BeEquivalentTo("id", "tipo", "estado", "repositorio", "mrIid", "pedidaPor", "pedidaEm", "atualizadaEm", "codigoErro", "comentario", "podeReexecutar");
         }
     }
 }
