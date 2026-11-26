@@ -440,5 +440,82 @@ namespace Esteira.Application.Tests.Fatias
             r.Situacao.Should().Be(SituacaoDaExecucao.Falhou);
             acao.CodigoErro.Should().Be("gitlab.mr-nao-esta-aberta");
         }
+
+        // ---- Capacidade de reabrir (sem rota nem TipoAcaoBot: o executor só a oferece) ----
+
+        private void Reabre(long gitLabId, string estado = "opened", long iid = 3)
+            => _gitlab.ReabrirMergeRequestAsync(Grupo, gitLabId, iid, Arg.Any<CancellationToken>())
+                .Returns(Result<MergeRequestDaAcaoGitLabDto>.Sucesso(new(iid, estado, "feature/p2b-x", "sha1", "success")));
+
+        [Fact, DisplayName("reabrir: MR closed é reaberta e a Ação confirma")]
+        public async Task Reabrir_MrFechada()
+        {
+            var acao = Acao(1, TipoAcaoBot.AbrirReview, estado: EstadoAcaoBot.Executando);
+            Mr(ProjetoGitLabApi, "closed", "success");
+            Reabre(ProjetoGitLabApi);
+
+            var r = await Executor().ReabrirMergeRequestAsync(acao, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Concluida);
+            acao.Estado.Should().Be(EstadoAcaoBot.Confirmada);
+            await _gitlab.Received(1).ReabrirMergeRequestAsync(Grupo, ProjetoGitLabApi, 3, Arg.Any<CancellationToken>());
+        }
+
+        [Fact, DisplayName("reabrir: MR já opened confirma sem chamar o GitLab para reabrir")]
+        public async Task Reabrir_MrJaAberta()
+        {
+            var acao = Acao(1, TipoAcaoBot.AbrirReview, estado: EstadoAcaoBot.Executando);
+            Mr(ProjetoGitLabApi, "opened", "success");
+
+            var r = await Executor().ReabrirMergeRequestAsync(acao, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Concluida);
+            acao.Estado.Should().Be(EstadoAcaoBot.Confirmada);
+            _gitlab.DidNotReceiveWithAnyArgs().ReabrirMergeRequestAsync(default, default, default, default);
+        }
+
+        [Fact, DisplayName("reabrir: MR merged é erro definitivo gitlab.mr-nao-esta-fechada")]
+        public async Task Reabrir_MrMergeada()
+        {
+            var acao = Acao(1, TipoAcaoBot.AbrirReview, estado: EstadoAcaoBot.Executando);
+            Mr(ProjetoGitLabApi, "merged", "success");
+
+            var r = await Executor().ReabrirMergeRequestAsync(acao, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Falhou);
+            r.CodigoErro.Should().Be("gitlab.mr-nao-esta-fechada");
+            acao.Estado.Should().Be(EstadoAcaoBot.Falhou);
+            _gitlab.DidNotReceiveWithAnyArgs().ReabrirMergeRequestAsync(default, default, default, default);
+        }
+
+        [Fact, DisplayName("reabrir: erro definitivo do GitLab ao reabrir falha a Ação com o código dele")]
+        public async Task Reabrir_ErroDefinitivo()
+        {
+            var acao = Acao(1, TipoAcaoBot.AbrirReview, estado: EstadoAcaoBot.Executando);
+            Mr(ProjetoGitLabApi, "closed", "success");
+            _gitlab.ReabrirMergeRequestAsync(Grupo, ProjetoGitLabApi, 3, Arg.Any<CancellationToken>())
+                .Returns(Result<MergeRequestDaAcaoGitLabDto>.Falha(Erro("gitlab.mr-nao-encontrada", TipoErro.NotFound)));
+
+            var r = await Executor().ReabrirMergeRequestAsync(acao, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Falhou);
+            r.CodigoErro.Should().Be("gitlab.mr-nao-encontrada");
+            acao.Estado.Should().Be(EstadoAcaoBot.Falhou);
+        }
+
+        [Fact, DisplayName("reabrir: erro transitório do GitLab devolve transitório e a Ação segue executando")]
+        public async Task Reabrir_ErroTransitorio()
+        {
+            var acao = Acao(1, TipoAcaoBot.AbrirReview, estado: EstadoAcaoBot.Executando);
+            Mr(ProjetoGitLabApi, "closed", "success");
+            _gitlab.ReabrirMergeRequestAsync(Grupo, ProjetoGitLabApi, 3, Arg.Any<CancellationToken>())
+                .Returns(Result<MergeRequestDaAcaoGitLabDto>.Falha(Erro("gitlab.indisponivel")));
+
+            var r = await Executor().ReabrirMergeRequestAsync(acao, Ct);
+
+            r.Situacao.Should().Be(SituacaoDaExecucao.Transitoria);
+            r.CodigoErro.Should().Be("gitlab.indisponivel");
+            acao.Estado.Should().Be(EstadoAcaoBot.Executando);
+        }
     }
 }

@@ -42,7 +42,7 @@ namespace Esteira.Messaging.Consumers
                     break;
 
                 case SituacaoDaExecucao.NaoImplementada:
-                    log.LogInformation("Ação {Acao} do tipo {Tipo} ainda não é executada (P2b.3).", acaoId, context.Message.Tipo);
+                    log.LogInformation("Ação {Acao} do tipo {Tipo} não tem executor (tipo não tratado).", acaoId, context.Message.Tipo);
                     break;
 
                 case SituacaoDaExecucao.NaoEncontrada:

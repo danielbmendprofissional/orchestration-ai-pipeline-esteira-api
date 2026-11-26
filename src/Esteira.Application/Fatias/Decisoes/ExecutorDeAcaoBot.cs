@@ -53,6 +53,7 @@ namespace Esteira.Application.Fatias.Decisoes
     {
         private const string CodigoIndisponivel = "gitlab.indisponivel";
         private const string CodigoMrNaoEstaAberta = "gitlab.mr-nao-esta-aberta";
+        private const string CodigoMrNaoEstaFechada = "gitlab.mr-nao-esta-fechada";
         private const string CodigoCiNaoVerde = "gitlab.ci-nao-verde";
         private const string CodigoMergeRecusado = "gitlab.merge-recusado";
         // Defensivo: a Ação aponta para uma Aplicação/Projeto que não existe (invariante de dados quebrada).
@@ -238,6 +239,33 @@ namespace Esteira.Application.Fatias.Decisoes
                 return await TratarErroAsync(acao, resultadoFechar.Errors[0], ct);
             if (!string.Equals(resultadoFechar.Value.Estado, "closed", StringComparison.OrdinalIgnoreCase))
                 return await conclusao.FalharAsync(acao, CodigoMrNaoEstaAberta, ct);
+
+            return await conclusao.ConfirmarAsync(acao, ct);
+        }
+
+        // Capacidade de reabrir a MR (spec P2b, linha 25): nenhuma rota, botão nem TipoAcaoBot a pede, então não passa
+        // pelo despacho de ExecutarAsync. Já aberta confirma sem chamar o GitLab; só closed é reaberta.
+        public async Task<ResultadoDaExecucao> ReabrirMergeRequestAsync(AcaoBotEntity acao, CancellationToken ct = default)
+        {
+            var doGitLab = await contexto.ResolverAsync(acao, ct);
+            if (doGitLab is null)
+                return await conclusao.FalharAsync(acao, CodigoProjetoNaoEncontrado, ct);
+
+            var mr = await gitlab.ObterMergeRequestAsync(doGitLab.Grupo, doGitLab.ProjetoGitLabId, acao.MrIid, ct);
+            if (!mr.IsSuccess)
+                return await TratarErroAsync(acao, mr.Errors[0], ct);
+
+            if (EstaAberta(mr.Value.Estado))
+                return await conclusao.ConfirmarAsync(acao, ct);
+
+            if (!string.Equals(mr.Value.Estado, "closed", StringComparison.OrdinalIgnoreCase))
+                return await conclusao.FalharAsync(acao, CodigoMrNaoEstaFechada, ct);
+
+            var reaberta = await gitlab.ReabrirMergeRequestAsync(doGitLab.Grupo, doGitLab.ProjetoGitLabId, acao.MrIid, ct);
+            if (!reaberta.IsSuccess)
+                return await TratarErroAsync(acao, reaberta.Errors[0], ct);
+            if (!EstaAberta(reaberta.Value.Estado))
+                return await conclusao.FalharAsync(acao, CodigoMrNaoEstaFechada, ct);
 
             return await conclusao.ConfirmarAsync(acao, ct);
         }
