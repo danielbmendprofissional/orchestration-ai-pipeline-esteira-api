@@ -19,5 +19,11 @@ namespace Esteira.Data.Entregas
             => contexto.Set<FluxoEntity>()
                 .Include(f => f.Fatias)
                 .FirstOrDefaultAsync(f => f.PublicId == fluxoPublicId, cancellationToken);
+
+        public Task<string?> ObterShaGravadoDoFluxoAsync(long fluxoId, CancellationToken cancellationToken = default)
+            => contexto.Set<FluxoEntity>().AsNoTracking()
+                .Where(f => f.Id == fluxoId)
+                .Select(f => f.Sha)
+                .FirstOrDefaultAsync(cancellationToken);
     }
 }

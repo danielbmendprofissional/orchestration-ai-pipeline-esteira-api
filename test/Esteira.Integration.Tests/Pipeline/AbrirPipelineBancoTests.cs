@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using AwesomeAssertions;
 using Esteira.Application.Entregas.Pipeline;
+using Esteira.Application.Interfaces.UnitOfWork;
 using Esteira.Data.Aplicacoes;
 using Esteira.Data.Common.Persistence;
 using Esteira.Data.Entregas;
@@ -30,6 +31,47 @@ namespace Esteira.Integration.Tests.Pipeline
             var entrega = await escrita.Set<EntregaEntity>().AsNoTracking().FirstAsync(e => e.Id == fluxo.EntregaId, Ct);
             return await handler.ExecutarAsync(
                 new AbrirPipelineEntrada(process, env, entrega.PublicId, fluxo.PublicId, CenarioDePipeline.Sha, c.Caminho, "1", null, null, null, false), Ct);
+        }
+
+        // Segura cada gravação até as duas chamadas terem lido o Fluxo: a corrida deixa de depender de sorte.
+        private sealed class UnitOfWorkComBarreira(IUnitOfWork inner, Barrier barreira) : IUnitOfWork
+        {
+            public Task BeginTransactionAsync() => inner.BeginTransactionAsync();
+            public Task CommitAsync() => inner.CommitAsync();
+            public Task RollbackAsync() => inner.RollbackAsync();
+            public Task<int> SaveChangesAsync()
+            {
+                barreira.SignalAndWait(TimeSpan.FromSeconds(30));
+                return inner.SaveChangesAsync();
+            }
+        }
+
+        private async Task<Result<AbrirPipelineResposta>> ExecutarComBarreiraAsync(CenarioDePipeline c, string sha, Barrier barreira)
+        {
+            await using var escrita = ContextoDoCadastro.Novo(infra);
+            await using var leitura = ContextoDoCadastro.NovoLeitura(infra);
+            var handler = new AbrirPipelineHandler(
+                new ProjetoPorCaminhoQuery(leitura), new EntregaRepositorio(escrita), new ProjetoRepositorio(escrita),
+                new OcupacaoAmbienteRepositorio(escrita), new DestinosDaPipelineQuery(leitura),
+                new UnitOfWorkComBarreira(new UnitOfWork(escrita), barreira), TimeProvider.System);
+            return await handler.ExecutarAsync(
+                new AbrirPipelineEntrada("fluxo", "qa", c.Entrega.PublicId, c.Fluxo.PublicId, sha, c.Caminho, "1", null, null, null, false), Ct);
+        }
+
+        [Fact, DisplayName("4: duas chamadas fluxo simultâneas com SHAs diferentes: uma 200, a outra 409 pipeline.sha-diferente, nunca exceção")]
+        public async Task CorridaDeFluxoComShasDiferentes()
+        {
+            var c = await CenarioDePipeline.CriarAsync(infra);
+            using var barreira = new Barrier(2);
+            var outroSha = new string('a', 40);
+
+            var resultados = await Task.WhenAll(
+                Task.Run(() => ExecutarComBarreiraAsync(c, CenarioDePipeline.Sha, barreira), Ct),
+                Task.Run(() => ExecutarComBarreiraAsync(c, outroSha, barreira), Ct));
+
+            resultados.Count(r => r.IsSuccess).Should().Be(1);
+            resultados.Single(r => !r.IsSuccess).Errors.Should().ContainSingle()
+                .Which.Should().Match<Erro>(e => e.Code == "pipeline.sha-diferente" && e.Type == TipoErro.Conflict);
         }
 
         [Fact, DisplayName("15: Destinos do Ambiente vêm por Ordem com a configuração cadastrada; outro Ambiente não vaza")]

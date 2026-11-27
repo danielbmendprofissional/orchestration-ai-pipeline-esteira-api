@@ -96,6 +96,28 @@ namespace Esteira.Application.Tests.Entregas
             await _ocupacoes.DidNotReceiveWithAnyArgs().ReservarAsync(default, default, default, default, default);
         }
 
+        [Fact, DisplayName("4: corrida no fluxo (concorrência otimista) com SHA diferente do vencedor responde 409 pipeline.sha-diferente")]
+        public async Task FluxoCorrida_ShaDiferenteDoVencedor_Recusa()
+        {
+            _uow.SaveChangesAsync().Returns<Task<int>>(_ => throw new ConcorrenciaOtimistaException());
+            _entregas.ObterShaGravadoDoFluxoAsync(30, Arg.Any<CancellationToken>()).Returns("ffffffffffffffffffffffffffffffffffffffff");
+
+            var r = await Handler().ExecutarAsync(Entrada(), Ct);
+
+            Recusou(r, "pipeline.sha-diferente", TipoErro.Conflict);
+        }
+
+        [Fact, DisplayName("4: corrida no fluxo em que o vencedor gravou o mesmo SHA segue normal (200)")]
+        public async Task FluxoCorrida_MesmoShaDoVencedor_Segue()
+        {
+            _uow.SaveChangesAsync().Returns<Task<int>>(_ => throw new ConcorrenciaOtimistaException());
+            _entregas.ObterShaGravadoDoFluxoAsync(30, Arg.Any<CancellationToken>()).Returns(Sha);
+
+            var r = await Handler().ExecutarAsync(Entrada(), Ct);
+
+            r.IsSuccess.Should().BeTrue();
+        }
+
         [Fact, DisplayName("4: o mesmo SHA de novo no fluxo (retry de job) responde 200")]
         public async Task FluxoQa_ShaRepetido_Idempotente()
         {

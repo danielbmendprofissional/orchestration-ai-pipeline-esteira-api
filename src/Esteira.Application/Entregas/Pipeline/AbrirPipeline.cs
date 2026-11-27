@@ -109,7 +109,18 @@ namespace Esteira.Application.Entregas.Pipeline
             }
 
             if (fluxoProcesso)
-                await unitOfWork.SaveChangesAsync();
+            {
+                try
+                {
+                    await unitOfWork.SaveChangesAsync();
+                }
+                catch (ConcorrenciaOtimistaException)
+                {
+                    // Outra chamada gravou o Fluxo entre a leitura e a gravação: vale o SHA que ela gravou.
+                    var gravado = await entregas.ObterShaGravadoDoFluxoAsync(fluxo.Id, cancellationToken);
+                    if (gravado != entrada.Sha) return ShaDiferente;
+                }
+            }
 
             // 9. Resposta.
             var lista = await destinos.ListarAsync(fluxo.ProjetoId, ambiente, cancellationToken);

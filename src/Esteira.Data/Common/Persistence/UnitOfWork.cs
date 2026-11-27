@@ -36,6 +36,10 @@ namespace Esteira.Data.Common.Persistence
             {
                 throw new ViolacaoDeUnicidadeException(pg.ConstraintName, ex);
             }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                throw new ConcorrenciaOtimistaException(ex);
+            }
         }
 
         public async Task CommitAsync()
