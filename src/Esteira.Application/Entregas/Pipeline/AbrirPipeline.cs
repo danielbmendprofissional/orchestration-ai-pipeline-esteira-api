@@ -132,10 +132,16 @@ namespace Esteira.Application.Entregas.Pipeline
                 catch (ConcorrenciaOtimistaException)
                 {
                     // A gravação da reserva levou junto o Fluxo, que outra chamada já gravou: vale o SHA dela. Igual: reserva de novo.
-                    // As mudanças pendentes (inclusive a Etapa) foram soltas: a Etapa fica como o vencedor deixou, sem evento.
-                    gravou = false;
+                    // As mudanças pendentes (inclusive a Etapa) foram soltas: relê a Etapa do vencedor e reaplica o fato desta
+                    // chamada (o pipeline_id não se perde); a nova reserva grava junto e o evento sai depois do commit.
                     var gravado = await entregas.ObterShaGravadoDoFluxoAsync(fluxo.Id, cancellationToken);
                     if (gravado != entrada.Sha) return ShaDiferente;
+                    if (mudancas.Count > 0)
+                    {
+                        foreach (var e in mudancas)
+                            await entregas.RecarregarAsync(e, cancellationToken);
+                        mudancas = AplicarEtapas(fluxo, entrada, ambiente, relogio.GetUtcNow().UtcDateTime);
+                    }
                     reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, quando, cancellationToken);
                 }
                 if (!reserva.IsSuccess) return Result<AbrirPipelineResposta>.Falha(reserva.Errors.ToArray());

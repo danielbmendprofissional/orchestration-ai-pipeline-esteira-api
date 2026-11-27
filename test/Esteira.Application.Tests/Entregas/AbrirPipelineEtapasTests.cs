@@ -229,6 +229,33 @@ namespace Esteira.Application.Tests.Entregas
             await _eventos.DidNotReceiveWithAnyArgs().PublicarAsync(default!, default);
         }
 
+        [Fact, DisplayName("10: conflito na gravacao da reserva de ocupacao recarrega a Etapa, reaplica o pipeline_id, grava e publica")]
+        public async Task ConflitoNaReserva_ReaplicaEPublica()
+        {
+            _fluxo.RegistrarSha(Sha);
+            var hml = _fluxo.Etapa(EtapaDoFluxo.Hml);
+            var chamadas = 0;
+            _ocupacoes.ReservarAsync(default, default, default, default, default).ReturnsForAnyArgs(_ =>
+                ++chamadas == 1 ? throw new ConcorrenciaOtimistaException() : Task.FromResult(Result.Sucesso()));
+            _entregas.ObterShaGravadoDoFluxoAsync(30, Arg.Any<CancellationToken>()).Returns(Sha);
+            // O Reload real devolve a Etapa ao estado do banco (nao iniciada): simula-o.
+            _entregas.RecarregarAsync(Arg.Any<EtapaFluxoEntity>(), Arg.Any<CancellationToken>()).Returns(_ =>
+            {
+                typeof(EtapaFluxoEntity).GetProperty(nameof(EtapaFluxoEntity.Estado))!.SetValue(hml, EstadoEtapa.NaoIniciado);
+                typeof(EtapaFluxoEntity).GetProperty(nameof(EtapaFluxoEntity.PipelineGitLabId))!.SetValue(hml, null);
+                return Task.CompletedTask;
+            });
+
+            var r = await Handler().ExecutarAsync(Entrada("promocao", "hml"), Ct);
+
+            r.IsSuccess.Should().BeTrue();
+            await _ocupacoes.ReceivedWithAnyArgs(2).ReservarAsync(default, default, default, default, default);
+            hml.Estado.Should().Be(EstadoEtapa.Executando);
+            hml.PipelineGitLabId.Should().Be(555);
+            _publicados.Should().ContainSingle().Which.Should().Be(
+                new EntregaAtualizada(_appPublicId, _entrega.PublicId, _fluxo.PublicId, "hml", "executando"));
+        }
+
         private sealed class Relogio : TimeProvider
         {
             public override DateTimeOffset GetUtcNow() => new(T0);
