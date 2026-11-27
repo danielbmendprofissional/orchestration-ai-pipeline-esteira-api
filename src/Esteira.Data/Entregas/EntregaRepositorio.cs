@@ -12,12 +12,15 @@ namespace Esteira.Data.Entregas
         public Task<EntregaEntity?> ObterPorPublicIdAsync(Guid entregaPublicId, CancellationToken cancellationToken = default)
             => contexto.Set<EntregaEntity>()
                 .Include(e => e.Fluxos).ThenInclude(f => f.Fatias)
+                .Include(e => e.Fluxos).ThenInclude(f => f.Etapas)
                 .AsSplitQuery()
                 .FirstOrDefaultAsync(e => e.PublicId == entregaPublicId, cancellationToken);
 
         public Task<FluxoEntity?> ObterFluxoPorPublicIdAsync(Guid fluxoPublicId, CancellationToken cancellationToken = default)
             => contexto.Set<FluxoEntity>()
                 .Include(f => f.Fatias)
+                .Include(f => f.Etapas)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(f => f.PublicId == fluxoPublicId, cancellationToken);
 
         public Task<string?> ObterShaGravadoDoFluxoAsync(long fluxoId, CancellationToken cancellationToken = default)
