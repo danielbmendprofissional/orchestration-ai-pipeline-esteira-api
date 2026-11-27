@@ -16,7 +16,7 @@ namespace Esteira.Application.Interfaces.Fatias
 
     // Flag `Features:P2` e `Review:*`, lidos da configuração a cada uso (nada é fixado na partida).
     // PrazoMinutos: `Review:PrazoMinutos` (padrão 30) — prazo máximo do preview antes de falhar e cancelar.
-    // IntervaloConsultaSegundos: `Review:IntervaloConsultaSegundos` (padrão 15) — intervalo da consulta periódica.
+    // IntervaloConsultaSegundos: `Review:IntervaloConsultaSegundos` (padrão 60) — intervalo da consulta periódica.
     public interface IOpcoesDeRevisao
     {
         bool Ligado { get; }
