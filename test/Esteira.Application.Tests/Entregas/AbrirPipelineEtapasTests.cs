@@ -256,6 +256,50 @@ namespace Esteira.Application.Tests.Entregas
                 new EntregaAtualizada(_appPublicId, _entrega.PublicId, _fluxo.PublicId, "hml", "executando"));
         }
 
+        private void SimularReloadDaEtapaHml(EtapaFluxoEntity hml)
+        {
+            _entregas.ObterShaGravadoDoFluxoAsync(30, Arg.Any<CancellationToken>()).Returns(Sha);
+            _entregas.RecarregarAsync(Arg.Any<EtapaFluxoEntity>(), Arg.Any<CancellationToken>()).Returns(_ =>
+            {
+                typeof(EtapaFluxoEntity).GetProperty(nameof(EtapaFluxoEntity.Estado))!.SetValue(hml, EstadoEtapa.NaoIniciado);
+                typeof(EtapaFluxoEntity).GetProperty(nameof(EtapaFluxoEntity.PipelineGitLabId))!.SetValue(hml, null);
+                return Task.CompletedTask;
+            });
+        }
+
+        [Fact]
+        public async Task DoisConflitosSeguidosNaReserva_ReaplicaEPublica_SemExcecao()
+        {
+            _fluxo.RegistrarSha(Sha);
+            var hml = _fluxo.Etapa(EtapaDoFluxo.Hml);
+            var chamadas = 0;
+            _ocupacoes.ReservarAsync(default, default, default, default, default).ReturnsForAnyArgs(_ =>
+                ++chamadas <= 2 ? throw new ConcorrenciaOtimistaException() : Task.FromResult(Result.Sucesso()));
+            SimularReloadDaEtapaHml(hml);
+
+            var r = await Handler().ExecutarAsync(Entrada("promocao", "hml"), Ct);
+
+            r.IsSuccess.Should().BeTrue();
+            hml.PipelineGitLabId.Should().Be(555);
+            _publicados.Should().ContainSingle();
+        }
+
+        [Fact]
+        public async Task ConflitoPermanenteNaReserva_DevolveConflitoDeDominio_NuncaExcecao()
+        {
+            _fluxo.RegistrarSha(Sha);
+            var hml = _fluxo.Etapa(EtapaDoFluxo.Hml);
+            _ocupacoes.ReservarAsync(default, default, default, default, default).ReturnsForAnyArgs<Task<Result>>(
+                _ => throw new ConcorrenciaOtimistaException());
+            SimularReloadDaEtapaHml(hml);
+
+            var r = await Handler().ExecutarAsync(Entrada("promocao", "hml"), Ct);
+
+            r.IsSuccess.Should().BeFalse();
+            r.Errors.Should().ContainSingle().Which.Code.Should().Be("pipeline.conflito-de-gravacao");
+            _publicados.Should().BeEmpty();
+        }
+
         private sealed class Relogio : TimeProvider
         {
             public override DateTimeOffset GetUtcNow() => new(T0);

@@ -67,6 +67,8 @@ namespace Esteira.Application.Entregas.Pipeline
         private static readonly Erro SemArtefato = new("pipeline.sem-artefato", "O Fluxo ainda não tem Artefato registrado.", TipoErro.Conflict);
         private static readonly Erro ShaDiferente = new("pipeline.sha-diferente", "O SHA difere do registrado no Fluxo.", TipoErro.Conflict);
         private static readonly Erro AtalhoObrigatorio = new("pipeline.atalho-obrigatorio", "O Atalho exige atalho_por e atalho_motivo.", TipoErro.Failure);
+        private const int TentativasDeReserva = 3;
+        private static readonly Erro ConflitoDeGravacao = new("pipeline.conflito-de-gravacao", "Outra gravação concorrente no mesmo Fluxo; tente de novo.", TipoErro.Conflict);
         private static readonly Erro CorpoInvalido = new("pipeline.corpo-invalido", "O corpo da requisição é inválido.", TipoErro.Failure);
 
         public async Task<Result<AbrirPipelineResposta>> ExecutarAsync(AbrirPipelineEntrada entrada, CancellationToken cancellationToken = default)
@@ -124,25 +126,27 @@ namespace Esteira.Application.Entregas.Pipeline
             if (ambiente != AmbienteDeploy.Qa)
             {
                 var quando = relogio.GetUtcNow().UtcDateTime;
-                Result reserva;
-                try
+                Result? reserva = null;
+                // A gravação da reserva leva junto o Fluxo e a Etapa; outra chamada (ou o webhook) pode gravá-los antes.
+                // Cada conflito solta as mudanças pendentes: relê a Etapa do vencedor, reaplica o fato desta chamada
+                // (o pipeline_id não se perde) e reserva de novo; o evento sai depois do commit. Esgotadas as tentativas,
+                // devolve conflito de domínio (409), nunca exceção.
+                for (var tentativa = 1; reserva is null; tentativa++)
                 {
-                    reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, quando, cancellationToken);
-                }
-                catch (ConcorrenciaOtimistaException)
-                {
-                    // A gravação da reserva levou junto o Fluxo, que outra chamada já gravou: vale o SHA dela. Igual: reserva de novo.
-                    // As mudanças pendentes (inclusive a Etapa) foram soltas: relê a Etapa do vencedor e reaplica o fato desta
-                    // chamada (o pipeline_id não se perde); a nova reserva grava junto e o evento sai depois do commit.
-                    var gravado = await entregas.ObterShaGravadoDoFluxoAsync(fluxo.Id, cancellationToken);
-                    if (gravado != entrada.Sha) return ShaDiferente;
-                    if (mudancas.Count > 0)
+                    try
                     {
-                        foreach (var e in mudancas)
-                            await entregas.RecarregarAsync(e, cancellationToken);
-                        mudancas = AplicarEtapas(fluxo, entrada, ambiente, relogio.GetUtcNow().UtcDateTime);
+                        reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, quando, cancellationToken);
                     }
-                    reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, quando, cancellationToken);
+                    catch (ConcorrenciaOtimistaException)
+                    {
+                        var gravado = await entregas.ObterShaGravadoDoFluxoAsync(fluxo.Id, cancellationToken);
+                        if (gravado != entrada.Sha) return ShaDiferente;
+                        if (tentativa >= TentativasDeReserva) return ConflitoDeGravacao;
+                        foreach (var etapa in mudancas)
+                            await entregas.RecarregarAsync(etapa, cancellationToken);
+                        if (mudancas.Count > 0)
+                            mudancas = AplicarEtapas(fluxo, entrada, ambiente, relogio.GetUtcNow().UtcDateTime);
+                    }
                 }
                 if (!reserva.IsSuccess) return Result<AbrirPipelineResposta>.Falha(reserva.Errors.ToArray());
             }
