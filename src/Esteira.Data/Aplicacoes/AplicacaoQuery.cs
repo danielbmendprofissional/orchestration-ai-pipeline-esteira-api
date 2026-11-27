@@ -68,6 +68,7 @@ namespace Esteira.Data.Aplicacoes
             var publicIds = projetos.ToDictionary(p => p.Id, p => p.PublicId);
             var nomes = projetos.ToDictionary(p => p.Id, p => p.Nome);
             var dependencias = (await contexto.Set<DependenciaProjetoEntity>().Where(d => ids.Contains(d.ProjetoId)).ToListAsync(cancellationToken)).ToLookup(d => d.ProjetoId);
+            var webhooks = (await contexto.Set<Esteira.Domain.Eventos.WebhookProjetoEntity>().Where(w => ids.Contains(w.ProjetoId)).ToListAsync(cancellationToken)).ToDictionary(w => w.ProjetoId);
 
             return new AplicacaoDetalheDto
             {
@@ -84,7 +85,8 @@ namespace Esteira.Data.Aplicacoes
                     p,
                     ambientes[p.Id],
                     destinos[p.Id],
-                    dependencias[p.Id].OrderBy(d => nomes[d.DependeDeProjetoId], StringComparer.Ordinal).Select(d => publicIds[d.DependeDeProjetoId]))).ToList(),
+                    dependencias[p.Id].OrderBy(d => nomes[d.DependeDeProjetoId], StringComparer.Ordinal).Select(d => publicIds[d.DependeDeProjetoId]),
+                    webhooks.GetValueOrDefault(p.Id))).ToList(),
                 Papeis = await PapelQuery.ComPessoasAsync(contexto, papeis, cancellationToken)
             };
         }

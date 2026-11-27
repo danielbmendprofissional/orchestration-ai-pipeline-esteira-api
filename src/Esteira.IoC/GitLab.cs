@@ -20,6 +20,14 @@ namespace Esteira.IoC
                     cliente.BaseAddress = url;
             });
 
+            // T1.4: hooks do projeto (registro do webhook), mesmo token do bot do grupo.
+            services.AddHttpClient<IGitLabHooks, GitLabHooksHttp>(cliente =>
+            {
+                cliente.Timeout = TimeSpan.FromSeconds(10);
+                if (Uri.TryCreate(configuration[$"{GitLabOptions.Secao}:Url"]?.TrimEnd('/') + "/", UriKind.Absolute, out var url))
+                    cliente.BaseAddress = url;
+            });
+
             return services;
         }
     }

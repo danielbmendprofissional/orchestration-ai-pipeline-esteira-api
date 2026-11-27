@@ -59,7 +59,8 @@ namespace Esteira.Application.Aplicacoes
             ProjetoEntity projeto,
             IEnumerable<AmbienteProjetoEntity> ambientes,
             IEnumerable<DestinoEntity> destinos,
-            IEnumerable<Guid> dependeDe)
+            IEnumerable<Guid> dependeDe,
+            Esteira.Domain.Eventos.WebhookProjetoEntity? webhook = null)
         {
             var destinosPorAmbiente = destinos.ToLookup(d => d.Ambiente);
             return new ProjetoResumoDto
@@ -76,7 +77,8 @@ namespace Esteira.Application.Aplicacoes
                     Habilitado = a.Habilitado,
                     Destinos = destinosPorAmbiente[a.Ambiente].OrderBy(d => d.Ordem).ThenBy(d => d.Nome, StringComparer.Ordinal).Select(Dto).ToList()
                 }).ToList(),
-                DependeDe = dependeDe.ToList()
+                DependeDe = dependeDe.ToList(),
+                Webhook = webhook is null ? null : Esteira.Application.Eventos.WebhookErros.Dto(webhook)
             };
         }
     }

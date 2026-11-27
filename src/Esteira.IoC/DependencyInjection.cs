@@ -60,6 +60,9 @@ namespace Esteira.IoC
             // T1.3: webhook do GitLab (Pipeline Hook e Merge Request Hook).
             services.AddScoped<Esteira.Application.Eventos.IProjetoDoWebhookQuery, Esteira.Data.Eventos.ProjetoDoWebhookQuery>();
             services.AddScoped<Esteira.Application.Eventos.ITratadorDeWebhookGitLab, Esteira.Application.Eventos.TratadorDeWebhookGitLab>();
+            services.AddScoped<Esteira.Application.Eventos.IOpcoesDoWebhook, OpcoesDoWebhook>();
+            services.AddScoped<Esteira.Application.Eventos.RegistradorDeWebhook>();
+            services.AddScoped<Esteira.Application.Eventos.PartidaDoWebhook>();
             services.AddScoped<IPapelQuery, PapelQuery>();
             services.AddScoped<IPessoaQuery, PessoaQuery>();
 
