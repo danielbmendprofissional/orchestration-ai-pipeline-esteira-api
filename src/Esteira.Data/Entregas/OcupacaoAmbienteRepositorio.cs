@@ -1,3 +1,4 @@
+using Esteira.Application.Interfaces.UnitOfWork;
 using Esteira.Data.Common.Persistence;
 using Esteira.Domain.Aplicacoes;
 using Esteira.Domain.Common.Resultados;
@@ -27,6 +28,15 @@ namespace Esteira.Data.Entregas
                 try
                 {
                     await contexto.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    // O mesmo SaveChanges grava o Fluxo (SHA pendente): outra chamada o gravou antes. Nada foi gravado (a
+                    // transação desfez); solta a reserva e as mudanças pendentes e deixa o handler decidir pelo SHA que ficou.
+                    contexto.Entry(nova).State = EntityState.Detached;
+                    foreach (var entrada in contexto.ChangeTracker.Entries().Where(e => e.State == EntityState.Modified).ToList())
+                        entrada.State = EntityState.Unchanged;
+                    throw new ConcorrenciaOtimistaException(ex);
                 }
                 catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
                 {

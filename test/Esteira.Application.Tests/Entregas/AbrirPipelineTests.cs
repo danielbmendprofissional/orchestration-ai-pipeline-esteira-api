@@ -118,6 +118,31 @@ namespace Esteira.Application.Tests.Entregas
             r.IsSuccess.Should().BeTrue();
         }
 
+        [Fact, DisplayName("4: corrida na reserva de production (concorrência no Fluxo) com SHA diferente do vencedor responde 409 pipeline.sha-diferente")]
+        public async Task FluxoProducao_CorridaNaReserva_ShaDiferenteDoVencedor_Recusa()
+        {
+            _ocupacoes.ReservarAsync(default, default, default, default, default)
+                .ReturnsForAnyArgs<Task<Result>>(_ => throw new ConcorrenciaOtimistaException());
+            _entregas.ObterShaGravadoDoFluxoAsync(30, Arg.Any<CancellationToken>()).Returns(OutroSha);
+
+            var r = await Handler().ExecutarAsync(Entrada(env: "production", atalhoPor: "fulano", atalhoMotivo: "urgente"), Ct);
+
+            Recusou(r, "pipeline.sha-diferente", TipoErro.Conflict);
+        }
+
+        [Fact, DisplayName("4: corrida na reserva de production em que o vencedor gravou o mesmo SHA reserva de novo e segue (200)")]
+        public async Task FluxoProducao_CorridaNaReserva_MesmoShaDoVencedor_ReservaESegue()
+        {
+            _ocupacoes.ReservarAsync(default, default, default, default, default)
+                .ReturnsForAnyArgs<Task<Result>>(_ => throw new ConcorrenciaOtimistaException(), _ => Task.FromResult(Result.Sucesso()));
+            _entregas.ObterShaGravadoDoFluxoAsync(30, Arg.Any<CancellationToken>()).Returns(Sha);
+
+            var r = await Handler().ExecutarAsync(Entrada(env: "production", atalhoPor: "fulano", atalhoMotivo: "urgente"), Ct);
+
+            r.IsSuccess.Should().BeTrue();
+            await _ocupacoes.Received(2).ReservarAsync(10, AmbienteDeploy.Producao, 30, Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
+        }
+
         [Fact, DisplayName("4: o mesmo SHA de novo no fluxo (retry de job) responde 200")]
         public async Task FluxoQa_ShaRepetido_Idempotente()
         {

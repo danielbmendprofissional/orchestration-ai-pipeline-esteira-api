@@ -104,7 +104,19 @@ namespace Esteira.Application.Entregas.Pipeline
             // 8. Ocupação (hml e production). Grava na hora, junto com o SHA pendente.
             if (ambiente != AmbienteDeploy.Qa)
             {
-                var reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, relogio.GetUtcNow().UtcDateTime, cancellationToken);
+                var quando = relogio.GetUtcNow().UtcDateTime;
+                Result reserva;
+                try
+                {
+                    reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, quando, cancellationToken);
+                }
+                catch (ConcorrenciaOtimistaException)
+                {
+                    // A gravação da reserva levou junto o Fluxo, que outra chamada já gravou: vale o SHA dela. Igual: reserva de novo.
+                    var gravado = await entregas.ObterShaGravadoDoFluxoAsync(fluxo.Id, cancellationToken);
+                    if (gravado != entrada.Sha) return ShaDiferente;
+                    reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, quando, cancellationToken);
+                }
                 if (!reserva.IsSuccess) return Result<AbrirPipelineResposta>.Falha(reserva.Errors.ToArray());
             }
 

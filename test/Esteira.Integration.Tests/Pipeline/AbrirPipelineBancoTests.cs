@@ -74,6 +74,86 @@ namespace Esteira.Integration.Tests.Pipeline
                 .Which.Should().Match<Erro>(e => e.Code == "pipeline.sha-diferente" && e.Type == TipoErro.Conflict);
         }
 
+        // Corrida qa x production no mesmo Fluxo: as duas leem o Fluxo (barreira); a de qa grava primeiro e só então a
+        // reserva de production grava (em production a gravação do SHA acontece dentro de ReservarAsync).
+        private sealed class UnitOfWorkQaVenceCorrida(IUnitOfWork inner, Barrier barreira, ManualResetEventSlim gravou) : IUnitOfWork
+        {
+            public Task BeginTransactionAsync() => inner.BeginTransactionAsync();
+            public Task CommitAsync() => inner.CommitAsync();
+            public Task RollbackAsync() => inner.RollbackAsync();
+            public async Task<int> SaveChangesAsync()
+            {
+                barreira.SignalAndWait(TimeSpan.FromSeconds(30));
+                try { return await inner.SaveChangesAsync(); }
+                finally { gravou.Set(); }
+            }
+        }
+
+        private sealed class OcupacaoComBarreira(IOcupacaoAmbienteRepositorio inner, Barrier barreira, ManualResetEventSlim gravou) : IOcupacaoAmbienteRepositorio
+        {
+            private int _chamadas;
+            public Task<OcupacaoAmbienteEntity?> ObterAsync(long projetoId, AmbienteDeploy ambiente, CancellationToken cancellationToken = default)
+                => inner.ObterAsync(projetoId, ambiente, cancellationToken);
+            public Task<Result> ReservarAsync(long projetoId, AmbienteDeploy ambiente, long fluxoId, DateTime quando, CancellationToken cancellationToken = default)
+            {
+                if (Interlocked.Increment(ref _chamadas) == 1)
+                {
+                    barreira.SignalAndWait(TimeSpan.FromSeconds(30));
+                    gravou.Wait(TimeSpan.FromSeconds(30));
+                }
+                return inner.ReservarAsync(projetoId, ambiente, fluxoId, quando, cancellationToken);
+            }
+            public Task<Result> LiberarAsync(long projetoId, AmbienteDeploy ambiente, long fluxoId, CancellationToken cancellationToken = default)
+                => inner.LiberarAsync(projetoId, ambiente, fluxoId, cancellationToken);
+        }
+
+        private async Task<Result<AbrirPipelineResposta>> ExecutarCorridaQaXProducaoAsync(CenarioDePipeline c, string env, string sha, Barrier barreira, ManualResetEventSlim gravou)
+        {
+            await using var escrita = ContextoDoCadastro.Novo(infra);
+            await using var leitura = ContextoDoCadastro.NovoLeitura(infra);
+            var qa = env == "qa";
+            var handler = new AbrirPipelineHandler(
+                new ProjetoPorCaminhoQuery(leitura), new EntregaRepositorio(escrita), new ProjetoRepositorio(escrita),
+                qa ? new OcupacaoAmbienteRepositorio(escrita) : new OcupacaoComBarreira(new OcupacaoAmbienteRepositorio(escrita), barreira, gravou),
+                new DestinosDaPipelineQuery(leitura),
+                qa ? new UnitOfWorkQaVenceCorrida(new UnitOfWork(escrita), barreira, gravou) : new UnitOfWork(escrita), TimeProvider.System);
+            return await handler.ExecutarAsync(
+                new AbrirPipelineEntrada("fluxo", env, c.Entrega.PublicId, c.Fluxo.PublicId, sha, c.Caminho, "1", null,
+                    qa ? null : "fulano", qa ? null : "urgente", false), Ct);
+        }
+
+        [Fact, DisplayName("4: fluxo em production perde a corrida do Fluxo para um fluxo em qa com SHA diferente: 409 pipeline.sha-diferente, nunca exceção")]
+        public async Task CorridaDeFluxoProducaoComShaDiferente()
+        {
+            var c = await CenarioDePipeline.CriarAsync(infra);
+            using var barreira = new Barrier(2);
+            using var gravou = new ManualResetEventSlim();
+
+            var resultados = await Task.WhenAll(
+                Task.Run(() => ExecutarCorridaQaXProducaoAsync(c, "qa", CenarioDePipeline.Sha, barreira, gravou), Ct),
+                Task.Run(() => ExecutarCorridaQaXProducaoAsync(c, "production", new string('a', 40), barreira, gravou), Ct));
+
+            resultados[0].IsSuccess.Should().BeTrue();
+            resultados[1].Errors.Should().ContainSingle()
+                .Which.Should().Match<Erro>(e => e.Code == "pipeline.sha-diferente" && e.Type == TipoErro.Conflict);
+        }
+
+        [Fact, DisplayName("4: fluxo em production perde a corrida do Fluxo para um fluxo em qa com o mesmo SHA: segue, reserva production uma só vez (200)")]
+        public async Task CorridaDeFluxoProducaoComMesmoSha()
+        {
+            var c = await CenarioDePipeline.CriarAsync(infra);
+            using var barreira = new Barrier(2);
+            using var gravou = new ManualResetEventSlim();
+
+            var resultados = await Task.WhenAll(
+                Task.Run(() => ExecutarCorridaQaXProducaoAsync(c, "qa", CenarioDePipeline.Sha, barreira, gravou), Ct),
+                Task.Run(() => ExecutarCorridaQaXProducaoAsync(c, "production", CenarioDePipeline.Sha, barreira, gravou), Ct));
+
+            resultados.Should().OnlyContain(r => r.IsSuccess);
+            await using var leitura = ContextoDoCadastro.Novo(infra);
+            (await leitura.Set<OcupacaoAmbienteEntity>().CountAsync(o => o.ProjetoId == c.Projeto.Id && o.Ambiente == AmbienteDeploy.Producao, Ct)).Should().Be(1);
+        }
+
         [Fact, DisplayName("15: Destinos do Ambiente vêm por Ordem com a configuração cadastrada; outro Ambiente não vaza")]
         public async Task DestinosPorOrdemComConfiguracao()
         {
