@@ -40,7 +40,7 @@ namespace Esteira.Application.Tests.Fatias
             _acoes.ObterPorPublicIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(c => _todas.FirstOrDefault(a => a.PublicId == c.Arg<Guid>()));
         }
 
-        private RegistrarProgressoDaAcao Servico() => new(_acoes, _acesso, _uow, _auditoria, _painel, new RelogioFixo());
+        private RegistrarProgressoDaAcao Servico() => new(_acoes, _acesso, _uow, _auditoria, _painel, new RelogioFixo(), Substitute.For<Esteira.Application.Eventos.IPublicadorDeEventos>());
 
         private sealed class RelogioFixo : TimeProvider
         {

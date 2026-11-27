@@ -16,7 +16,8 @@ namespace Esteira.Integration.Tests.Infraestrutura
         public static IHost Criar(
             InfraestruturaFixture infra,
             string ambienteMensageria,
-            Action<IBusRegistrationConfigurator>? consumidores = null)
+            Action<IBusRegistrationConfigurator>? consumidores = null,
+            Action<IServiceCollection>? servicos = null)
         {
             var builder = Host.CreateApplicationBuilder();
             builder.Configuration.AddInMemoryCollection(infra.Configuracao(ambienteMensageria));
@@ -27,6 +28,7 @@ namespace Esteira.Integration.Tests.Infraestrutura
 
             // A consulta periódica da pipeline (P2b.3) bateria no GitLab real: os testes de integração a removem do host.
             builder.Services.RemoveAll<ConsultaDePipelinesService>();
+            servicos?.Invoke(builder.Services);
 
             return builder.Build();
         }

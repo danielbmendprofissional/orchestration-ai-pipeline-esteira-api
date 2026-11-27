@@ -8,6 +8,9 @@ namespace Esteira.Application.Interfaces.Aplicacoes
     {
         Task<ProjetoEntity?> ObterPorPublicIdAsync(Guid publicId, CancellationToken cancellationToken = default);
 
+        // Pelo Id interno (long): usado pelo consumer do registro do webhook (T1.4).
+        Task<ProjetoEntity?> ObterPorIdAsync(long id, CancellationToken cancellationToken = default);
+
         // Projeto do GitLab já cadastrado em qualquer Aplicação.
         Task<bool> ProjetoGitLabCadastradoAsync(long projetoGitLabId, CancellationToken cancellationToken = default);
 

@@ -12,7 +12,7 @@ namespace Esteira.IoC
 
         public int PrazoMinutos => InteiroPositivo("Review:PrazoMinutos", 30);
 
-        public int IntervaloConsultaSegundos => InteiroPositivo("Review:IntervaloConsultaSegundos", 15);
+        public int IntervaloConsultaSegundos => InteiroPositivo("Review:IntervaloConsultaSegundos", 60);
 
         public int TentativasMaximas => InteiroPositivo("Bot:TentativasMaximas", 3);
 

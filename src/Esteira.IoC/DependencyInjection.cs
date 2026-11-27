@@ -47,6 +47,7 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IDestinosDaPipelineQuery, Esteira.Data.Entregas.DestinosDaPipelineQuery>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();
+            services.AddScoped<Esteira.Domain.Eventos.IWebhookProjetoRepositorio, Esteira.Data.Eventos.WebhookProjetoRepositorio>();
             services.AddScoped<PreparadorDeDecisao>();
             services.AddScoped<IAcoesDaFatiaQuery, AcoesDaFatiaQuery>();
             services.AddScoped<IOpcoesDeRevisao, OpcoesDeRevisao>();
@@ -56,6 +57,12 @@ namespace Esteira.IoC
             services.AddScoped<ConclusaoDaAcaoBot>();
             services.AddScoped<ExecutorDeAcaoBot>();
             services.AddScoped<ConsultaDePipelines>();
+            // T1.3: webhook do GitLab (Pipeline Hook e Merge Request Hook).
+            services.AddScoped<Esteira.Application.Eventos.IProjetoDoWebhookQuery, Esteira.Data.Eventos.ProjetoDoWebhookQuery>();
+            services.AddScoped<Esteira.Application.Eventos.ITratadorDeWebhookGitLab, Esteira.Application.Eventos.TratadorDeWebhookGitLab>();
+            services.AddScoped<Esteira.Application.Eventos.IOpcoesDoWebhook, OpcoesDoWebhook>();
+            services.AddScoped<Esteira.Application.Eventos.RegistradorDeWebhook>();
+            services.AddScoped<Esteira.Application.Eventos.PartidaDoWebhook>();
             services.AddScoped<IPapelQuery, PapelQuery>();
             services.AddScoped<IPessoaQuery, PessoaQuery>();
 

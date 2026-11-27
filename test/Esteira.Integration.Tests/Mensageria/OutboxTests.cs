@@ -75,6 +75,14 @@ namespace Esteira.Integration.Tests.Mensageria
             var ambiente = HostDeTeste.AmbienteUnico();
             var marcador = Guid.NewGuid();
 
+            // Declara filas e bindings (duráveis) e para: o outbox usa o banco compartilhado, então outro host do processo
+            // de teste pode entregar a linha antes do reinício, e sem fila ligada a mensagem se perderia.
+            using (var topologia = HostDeTeste.Criar(infra, ambiente, RegistrarConsumidor))
+            {
+                await topologia.StartAsync(TestContext.Current.CancellationToken);
+                await topologia.StopAsync(TestContext.Current.CancellationToken);
+            }
+
             // Commit com o host parado: a mensagem fica só na tabela de outbox.
             using (var parado = HostDeTeste.Criar(infra, ambiente, RegistrarConsumidor))
                 await PublicarEmTransacaoAsync(parado, marcador, confirmar: true);

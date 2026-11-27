@@ -80,7 +80,7 @@ namespace Esteira.Application.Tests.Fatias
         private ConsultaDePipelines Consulta()
         {
             var relogio = new RelogioFixo();
-            var progresso = new RegistrarProgressoDaAcao(_acoes, _acesso, _uow, _auditoria, _painel, relogio);
+            var progresso = new RegistrarProgressoDaAcao(_acoes, _acesso, _uow, _auditoria, _painel, relogio, Substitute.For<Esteira.Application.Eventos.IPublicadorDeEventos>());
             var contexto = new ContextoGitLabDaAcao(_aplicacoes, _projetos, new FakeLogger<ContextoGitLabDaAcao>());
             var conclusao = new ConclusaoDaAcaoBot(_acoes, _aplicacoes, _projetos, _gitlab, progresso, _publicador,
                 new FakeLogger<ConclusaoDaAcaoBot>());

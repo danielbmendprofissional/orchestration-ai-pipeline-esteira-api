@@ -51,6 +51,8 @@ namespace Esteira.Application.Aplicacoes
         public bool Ativo { get; set; }
         public List<AmbienteProjetoDto> Ambientes { get; set; } = [];
         public List<Guid> DependeDe { get; set; } = [];
+        // T1.4: estado do registro do hook do GitLab; nulo enquanto o Projeto ainda não tem linha (antes da partida).
+        public Esteira.Application.Eventos.WebhookProjetoDto? Webhook { get; set; }
     }
 
     // Item da lista de projetos do grupo no GitLab (GET /aplicacoes/{id}/gitlab/projetos).

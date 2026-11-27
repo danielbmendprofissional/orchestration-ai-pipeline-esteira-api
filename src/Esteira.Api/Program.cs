@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Newtonsoft.Json.Serialization;
 using Prometheus;
 using Scalar.AspNetCore;
@@ -105,9 +106,20 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
 builder.Services.AddSessaoRedis(builder.Configuration);
+// Tempo real (T1.2): pub/sub no Redis + fan-out em memória para o SSE em /api/v1/eventos. Limites do stream: EventosOptions.
+builder.Services.AddEventosDeTempoReal(builder.Configuration);
+builder.Services.TryAddSingleton<Esteira.Api.Eventos.EventosOptions>();
+builder.Services.AddSingleton<Esteira.Api.Eventos.ConexoesDeEventos>();
 // Consumer da Ação do bot (P2b.2–P2b.4): executa abrir-review, aprovar e reprovar no GitLab, com retry das falhas transitórias.
 builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction(),
-    x => x.AddConsumer<AcaoBotPedidaConsumer, AcaoBotPedidaConsumerDefinition>());
+    x =>
+    {
+        x.AddConsumer<AcaoBotPedidaConsumer, AcaoBotPedidaConsumerDefinition>();
+        // Registro do hook do GitLab no Projeto (T1.4).
+        x.AddConsumer<RegistrarWebhookPedidoConsumer>();
+    });
+// Partida do webhook (T1.4): enfileira o registro dos Projetos ativos sem hook.
+builder.Services.AddHostedService<PartidaDoWebhookService>();
 // Consulta periódica do status da pipeline do `abrir-review` (P2b.3): confirma/falha a Ação quando o preview termina.
 builder.Services.AddHostedService<ConsultaDePipelinesService>();
 builder.Services.AddDependencyInjection();

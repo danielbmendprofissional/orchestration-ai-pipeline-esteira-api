@@ -7,6 +7,8 @@ using Esteira.Application.Interfaces.Integracoes;
 using Esteira.Application.Interfaces.UnitOfWork;
 using Esteira.Domain.Aplicacoes;
 using Esteira.Domain.Common.Resultados;
+using Esteira.Domain.Eventos;
+using MassTransit;
 using NSubstitute;
 
 namespace Esteira.Application.Tests.Aplicacoes
@@ -18,6 +20,9 @@ namespace Esteira.Application.Tests.Aplicacoes
         private readonly IAcessoAplicacaoQuery _acesso = Substitute.For<IAcessoAplicacaoQuery>();
         private readonly IAplicacaoRepositorio _apps = Substitute.For<IAplicacaoRepositorio>();
         private readonly IGitLab _gitlab = Substitute.For<IGitLab>();
+        private IWebhookProjetoRepositorio Webhooks { get; } = Substitute.For<IWebhookProjetoRepositorio>();
+        private IPublishEndpoint Publicador { get; } = Substitute.For<IPublishEndpoint>();
+        private TimeProvider Relogio { get; } = TimeProvider.System;
         private readonly AplicacaoEntity _app = AplicacaoEntity.Criar("Valuto", "VLT", 42, "valuto").Value;
 
         public CadastrarProjetoTests()
@@ -29,7 +34,7 @@ namespace Esteira.Application.Tests.Aplicacoes
         }
 
         private Task<Result<ProjetoResumoDto>> Executar(long? gitlabId = 501, string stack = "dotnet")
-            => new CadastrarProjetoHandler(_acesso, Autorizacao, _apps, Projetos, _gitlab, Uow, Auditoria)
+            => new CadastrarProjetoHandler(_acesso, Autorizacao, _apps, Projetos, _gitlab, Uow, Auditoria, Webhooks, Publicador, Relogio)
                 .Handle(new CadastrarProjetoCommand(_app.PublicId, gitlabId, stack), Ct);
 
         [Fact, DisplayName("Critérios 6 e 8: cadastra o Projeto do grupo com a stack escolhida e cria qa, hml e producao habilitados")]
@@ -108,7 +113,7 @@ namespace Esteira.Application.Tests.Aplicacoes
         [Fact, DisplayName("Aplicação inexistente responde aplicacao.nao-encontrada")]
         public async Task Inexistente()
         {
-            var r = await new CadastrarProjetoHandler(_acesso, Autorizacao, _apps, Projetos, _gitlab, Uow, Auditoria)
+            var r = await new CadastrarProjetoHandler(_acesso, Autorizacao, _apps, Projetos, _gitlab, Uow, Auditoria, Webhooks, Publicador, Relogio)
                 .Handle(new CadastrarProjetoCommand(Guid.NewGuid(), 501, "dotnet"), Ct);
 
             r.Errors.Should().ContainSingle().Which.Should().Be(AutorizacaoAplicacao.NaoEncontrada);

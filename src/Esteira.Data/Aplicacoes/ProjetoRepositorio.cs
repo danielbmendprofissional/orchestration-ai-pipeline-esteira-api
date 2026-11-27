@@ -11,6 +11,9 @@ namespace Esteira.Data.Aplicacoes
         public Task<ProjetoEntity?> ObterPorPublicIdAsync(Guid publicId, CancellationToken cancellationToken = default)
             => contexto.Set<ProjetoEntity>().FirstOrDefaultAsync(p => p.PublicId == publicId, cancellationToken);
 
+        public Task<ProjetoEntity?> ObterPorIdAsync(long id, CancellationToken cancellationToken = default)
+            => contexto.Set<ProjetoEntity>().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
         public Task<bool> ProjetoGitLabCadastradoAsync(long projetoGitLabId, CancellationToken cancellationToken = default)
             => contexto.Set<ProjetoEntity>().AnyAsync(p => p.ProjetoGitLabId == projetoGitLabId, cancellationToken);
 
@@ -81,7 +84,10 @@ namespace Esteira.Data.Aplicacoes
             var dependeDe = await contexto.Set<ProjetoEntity>()
                 .Where(p => alvos.Contains(p.Id)).OrderBy(p => p.Nome).ThenBy(p => p.Id).Select(p => p.PublicId).ToListAsync(cancellationToken);
 
-            return ProjetoErros.Dto(projeto, ambientes, destinos, dependeDe);
+            var webhook = await contexto.Set<Esteira.Domain.Eventos.WebhookProjetoEntity>().AsNoTracking()
+                .FirstOrDefaultAsync(w => w.ProjetoId == projeto.Id, cancellationToken);
+
+            return ProjetoErros.Dto(projeto, ambientes, destinos, dependeDe, webhook);
         }
     }
 }

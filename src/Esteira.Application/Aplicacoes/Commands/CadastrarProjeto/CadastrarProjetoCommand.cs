@@ -34,7 +34,10 @@ namespace Esteira.Application.Aplicacoes.Commands.CadastrarProjeto
         IProjetoRepositorio projetos,
         IGitLab gitlab,
         IUnitOfWork uow,
-        IAuditoria auditoria) : IRequestHandler<CadastrarProjetoCommand, Result<ProjetoResumoDto>>
+        IAuditoria auditoria,
+        Esteira.Domain.Eventos.IWebhookProjetoRepositorio webhooks,
+        MassTransit.IPublishEndpoint publicador,
+        TimeProvider relogio) : IRequestHandler<CadastrarProjetoCommand, Result<ProjetoResumoDto>>
     {
         public async Task<Result<ProjetoResumoDto>> Handle(CadastrarProjetoCommand request, CancellationToken cancellationToken)
         {
@@ -82,6 +85,10 @@ namespace Esteira.Application.Aplicacoes.Commands.CadastrarProjeto
                 var criado = AmbienteProjetoEntity.Criar(projeto.Id, ambiente);
                 await projetos.AdicionarAmbienteAsync(criado.Value, cancellationToken);
             }
+
+            // T1.4: o registro do hook no GitLab é uma Ação do bot: linha pendente + mensagem no outbox, na mesma transação.
+            await webhooks.AdicionarAsync(Esteira.Domain.Eventos.WebhookProjetoEntity.Criar(projeto.Id, relogio.GetUtcNow().UtcDateTime), cancellationToken);
+            await publicador.Publish(new Esteira.Application.Eventos.RegistrarWebhookPedido(projeto.Id), cancellationToken);
 
             auditoria.Registrar("Projeto", projeto.PublicId, AcaoAuditoria.Criou, null, new
             {

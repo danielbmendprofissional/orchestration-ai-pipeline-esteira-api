@@ -5,6 +5,7 @@ using Esteira.Application.Aplicacoes.Commands.AlterarAmbiente;
 using Esteira.Application.Aplicacoes.Commands.AlterarProjeto;
 using Esteira.Application.Aplicacoes.Commands.Destinos;
 using Esteira.Application.Aplicacoes.Commands.SubstituirDependencias;
+using Esteira.Application.Eventos;
 using Esteira.Domain.Common.Resultados;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -91,5 +92,15 @@ namespace Esteira.Api.Controllers
         [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
         public async Task<Result> RemoverDestino(Guid id, string ambiente, Guid destinoId, CancellationToken cancellationToken)
             => await mediator.Send(new RemoverDestinoCommand(id, ambiente, destinoId), cancellationToken);
+
+        // T1.4: volta o registro do hook a `pendente` e enfileira. Só o MOR; fora de `falhou`, 409 webhook.nao-reexecutavel.
+        [HttpPost("{id:guid}/webhook/reexecutar")]
+        [ProducesResponseType<WebhookProjetoDto>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        public async Task<Result<WebhookProjetoDto>> ReexecutarWebhook(Guid id, CancellationToken cancellationToken)
+            => await mediator.Send(new ReexecutarWebhookCommand(id), cancellationToken);
     }
 }

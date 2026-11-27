@@ -43,7 +43,9 @@ namespace Esteira.Integration.Tests.Infraestrutura
             ["RabbitMQ:UserName"] = RabbitMqBuilder.DefaultUsername,
             ["RabbitMQ:Password"] = RabbitMqBuilder.DefaultPassword,
             // Sufixo próprio por teste: filas e exchanges não se misturam entre testes.
-            ["RabbitMQ:Ambiente"] = ambienteMensageria
+            ["RabbitMQ:Ambiente"] = ambienteMensageria,
+            // A partida do webhook (T1.4) olha o banco compartilhado: ligada em todo host, enfileiraria Projetos de outros testes.
+            ["Webhook:Partida:Ligada"] = "false"
         };
 
         public async ValueTask InitializeAsync()
