@@ -37,6 +37,8 @@ namespace Esteira.IoC
             services.AddScoped<IAplicacaoQuery, AplicacaoQuery>();
             services.AddScoped<IPainelAplicacaoQuery, PainelAplicacaoQuery>();
             services.AddScoped<IProjetoRepositorio, ProjetoRepositorio>();
+            services.AddScoped<Esteira.Domain.Entregas.IEntregaRepositorio, Esteira.Data.Entregas.EntregaRepositorio>();
+            services.AddScoped<Esteira.Domain.Entregas.IOcupacaoAmbienteRepositorio, Esteira.Data.Entregas.OcupacaoAmbienteRepositorio>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();
             services.AddScoped<PreparadorDeDecisao>();

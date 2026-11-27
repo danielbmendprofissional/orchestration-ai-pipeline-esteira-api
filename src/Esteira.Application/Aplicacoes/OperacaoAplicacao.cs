@@ -15,6 +15,8 @@ namespace Esteira.Application.Aplicacoes
         // Membro, Aprovador técnico ou MOR (P2): pedir o review de uma Fatia Em revisão.
         AbrirReview,
         // Aprovador técnico ou MOR (P2): aprovar ou reprovar uma Fatia Em revisão.
-        DecidirFatia
+        DecidirFatia,
+        // Membro ou MOR (E1): abrir uma Entrega.
+        AbrirEntrega
     }
 }
