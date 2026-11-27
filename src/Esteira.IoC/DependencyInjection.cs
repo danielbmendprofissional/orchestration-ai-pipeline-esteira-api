@@ -41,8 +41,10 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Domain.Entregas.IOcupacaoAmbienteRepositorio, Esteira.Data.Entregas.OcupacaoAmbienteRepositorio>();
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IProjetoDaPipelineQuery, Esteira.Data.Entregas.ProjetoDaPipelineQuery>();
             services.AddScoped<Esteira.Application.Entregas.Pipeline.PorteiroDaPipeline>();
-            // E1.3: fail-closed até a E1.4 registrar aqui a implementação dos passos 3–9 do `esteira-abrir`.
-            services.AddScoped<Esteira.Application.Entregas.Pipeline.IAbrirPipeline, Esteira.Application.Entregas.Pipeline.AbrirPipelineNaoImplementado>();
+            // E1.4: passos 3–9 do `esteira-abrir`.
+            services.AddScoped<Esteira.Application.Entregas.Pipeline.IAbrirPipeline, Esteira.Application.Entregas.Pipeline.AbrirPipelineHandler>();
+            services.AddScoped<Esteira.Application.Entregas.Pipeline.IProjetoPorCaminhoQuery, Esteira.Data.Entregas.ProjetoPorCaminhoQuery>();
+            services.AddScoped<Esteira.Application.Entregas.Pipeline.IDestinosDaPipelineQuery, Esteira.Data.Entregas.DestinosDaPipelineQuery>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();
             services.AddScoped<PreparadorDeDecisao>();

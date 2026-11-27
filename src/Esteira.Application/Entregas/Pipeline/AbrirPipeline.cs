@@ -1,4 +1,8 @@
+using Esteira.Application.Interfaces.Aplicacoes;
+using Esteira.Application.Interfaces.UnitOfWork;
+using Esteira.Domain.Aplicacoes;
 using Esteira.Domain.Common.Resultados;
+using Esteira.Domain.Entregas;
 
 namespace Esteira.Application.Entregas.Pipeline
 {
@@ -21,18 +25,95 @@ namespace Esteira.Application.Entregas.Pipeline
 
     public sealed record AbrirPipelineResposta(string FeatureFlags, IReadOnlyList<DestinoNaResposta> Destinos);
 
-    // PONTO DE EXTENSÃO DA E1.4: passos 3–9 do `esteira-abrir` (processo suportado, Entrega e Fluxo, Ambiente, SHA, Atalho,
-    // ocupação, resposta). A E1.4 troca o registro desta porta em Esteira.IoC (hoje `AbrirPipelineNaoImplementado`).
+    // Passos 3–9 do `esteira-abrir` (processo suportado, Entrega e Fluxo, Ambiente, SHA, Atalho, ocupação, resposta).
     public interface IAbrirPipeline
     {
         Task<Result<AbrirPipelineResposta>> ExecutarAsync(AbrirPipelineEntrada entrada, CancellationToken cancellationToken = default);
     }
 
-    // Fail-closed até a E1.4: nenhuma chamada autenticada e válida é aceita "pela metade", nem recebe sucesso falso.
-    public sealed class AbrirPipelineNaoImplementado : IAbrirPipeline
+    // Porta de leitura: Id do Projeto ativo cadastrado com esse caminho do GitLab (nulo se não existe ou inativo).
+    public interface IProjetoPorCaminhoQuery
     {
-        public Task<Result<AbrirPipelineResposta>> ExecutarAsync(AbrirPipelineEntrada entrada, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result<AbrirPipelineResposta>.Falha(new Erro(
-                "pipeline.nao-implementado", "A abertura do Artefato ainda não está disponível nesta versão da Esteira.", TipoErro.Failure)));
+        Task<long?> ObterIdAtivoAsync(string caminho, CancellationToken cancellationToken = default);
+    }
+
+    // Porta de leitura: Destinos do Projeto no Ambiente, por Ordem, com a configuração cadastrada na A1.
+    public interface IDestinosDaPipelineQuery
+    {
+        Task<IReadOnlyList<DestinoNaResposta>> ListarAsync(long projetoId, AmbienteDeploy ambiente, CancellationToken cancellationToken = default);
+    }
+
+    // Passos 3 a 9 do `esteira-abrir`, em ordem e fail-closed. Nunca consulta o GitLab.
+    public sealed class AbrirPipelineHandler(
+        IProjetoPorCaminhoQuery projetosPorCaminho,
+        IEntregaRepositorio entregas,
+        IProjetoRepositorio projetos,
+        IOcupacaoAmbienteRepositorio ocupacoes,
+        IDestinosDaPipelineQuery destinos,
+        IUnitOfWork unitOfWork,
+        TimeProvider relogio) : IAbrirPipeline
+    {
+        private static readonly Erro NaoSuportado = new("pipeline.processo-nao-suportado", "O processo não é suportado por esta versão da Esteira.", TipoErro.Failure);
+        private static readonly Erro SemEntrega = new("pipeline.sem-entrega-aberta", "Não há Entrega aberta para este Fluxo.", TipoErro.Conflict);
+        private static readonly Erro Desabilitado = new("ambiente.desabilitado", "O Ambiente não está habilitado no Projeto.", TipoErro.Failure);
+        private static readonly Erro SemArtefato = new("pipeline.sem-artefato", "O Fluxo ainda não tem Artefato registrado.", TipoErro.Conflict);
+        private static readonly Erro ShaDiferente = new("pipeline.sha-diferente", "O SHA difere do registrado no Fluxo.", TipoErro.Conflict);
+        private static readonly Erro AtalhoObrigatorio = new("pipeline.atalho-obrigatorio", "O Atalho exige atalho_por e atalho_motivo.", TipoErro.Failure);
+
+        public async Task<Result<AbrirPipelineResposta>> ExecutarAsync(AbrirPipelineEntrada entrada, CancellationToken cancellationToken = default)
+        {
+            // 3. Processo suportado.
+            var promocao = entrada.Process == "promocao";
+            var fluxoProcesso = entrada.Process == "fluxo";
+            AmbienteDeploy ambiente;
+            if (fluxoProcesso && entrada.Env == "qa") ambiente = AmbienteDeploy.Qa;
+            else if (fluxoProcesso && entrada.Env == "production") ambiente = AmbienteDeploy.Producao;
+            else if (promocao && entrada.Env == "hml") ambiente = AmbienteDeploy.Hml;
+            else if (promocao && entrada.Env == "production") ambiente = AmbienteDeploy.Producao;
+            else return NaoSuportado;
+
+            // 4. Entrega aberta e Fluxo dela, do Projeto do token.
+            var projetoId = await projetosPorCaminho.ObterIdAtivoAsync(entrada.Projeto, cancellationToken);
+            var entrega = projetoId is null ? null : await entregas.ObterPorPublicIdAsync(entrada.EntregaId, cancellationToken);
+            var fluxo = entrega?.Fluxos.FirstOrDefault(f => f.PublicId == entrada.FluxoId);
+            if (entrega is null || entrega.Situacao != SituacaoEntrega.Aberta || fluxo is null || fluxo.ProjetoId != projetoId)
+                return SemEntrega;
+
+            // 5. Ambiente habilitado.
+            var cadastro = await projetos.ObterAmbienteAsync(fluxo.ProjetoId, ambiente, cancellationToken);
+            if (cadastro is null || !cadastro.Habilitado)
+                return Desabilitado;
+
+            // 6. SHA.
+            if (promocao)
+            {
+                if (fluxo.Sha is null) return SemArtefato;
+                if (fluxo.Sha != entrada.Sha) return ShaDiferente;
+            }
+            else
+            {
+                var registro = fluxo.RegistrarSha(entrada.Sha);
+                if (!registro.IsSuccess) return Result<AbrirPipelineResposta>.Falha(registro.Errors.ToArray());
+            }
+
+            // 7. Atalho (só `fluxo` em production; a promocao nunca o honra).
+            if (fluxoProcesso && ambiente == AmbienteDeploy.Producao
+                && (string.IsNullOrWhiteSpace(entrada.AtalhoPor) || string.IsNullOrWhiteSpace(entrada.AtalhoMotivo)))
+                return AtalhoObrigatorio;
+
+            // 8. Ocupação (hml e production). Grava na hora, junto com o SHA pendente.
+            if (ambiente != AmbienteDeploy.Qa)
+            {
+                var reserva = await ocupacoes.ReservarAsync(fluxo.ProjetoId, ambiente, fluxo.Id, relogio.GetUtcNow().UtcDateTime, cancellationToken);
+                if (!reserva.IsSuccess) return Result<AbrirPipelineResposta>.Falha(reserva.Errors.ToArray());
+            }
+
+            if (fluxoProcesso)
+                await unitOfWork.SaveChangesAsync();
+
+            // 9. Resposta.
+            var lista = await destinos.ListarAsync(fluxo.ProjetoId, ambiente, cancellationToken);
+            return Result<AbrirPipelineResposta>.Sucesso(new AbrirPipelineResposta(fluxo.FeatureFlags(ambiente), lista));
+        }
     }
 }
