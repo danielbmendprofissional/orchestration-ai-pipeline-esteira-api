@@ -14,6 +14,7 @@ using Esteira.Integration.Tests.Infraestrutura;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
@@ -39,8 +40,10 @@ namespace Esteira.Integration.Tests.Eventos
             _infra = infra;
         }
 
-        private WebApplicationFactory<Program> Com(IGitLab gitlab, IGitLabHooks hooks) => _api.WithWebHostBuilder(b =>
+        private WebApplicationFactory<Program> Com(IGitLab gitlab, IGitLabHooks hooks, bool partida = false) => _api.WithWebHostBuilder(b =>
         {
+            b.ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["Webhook:Partida:Ligada"] = partida ? "true" : "false" }));
             b.UseSetting("Features:A1", "true");
             b.UseSetting("GitLab:Webhook:Secret", Segredo);
             b.UseSetting("Webhook:UrlPublica", UrlPublica);
@@ -208,7 +211,7 @@ namespace Esteira.Integration.Tests.Eventos
             }
 
             var hooks = HooksFalso();
-            using var api = Com(Substitute.For<IGitLab>(), hooks);
+            using var api = Com(Substitute.For<IGitLab>(), hooks, partida: true);
             _ = api.Services;
 
             var webhook = await AguardarEstadoAsync(projetoId, EstadoWebhookProjeto.Registrado);

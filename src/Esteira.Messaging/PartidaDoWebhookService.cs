@@ -1,4 +1,5 @@
 using Esteira.Application.Eventos;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -7,10 +8,15 @@ namespace Esteira.Messaging
 {
     // Serviço de partida (T1.4, critério 10): uma vez, ao subir, enfileira o registro do hook dos Projetos ativos sem
     // WebhookProjeto. Um escopo por Projeto (a corrida de unicidade de um não contamina os outros); nunca derruba o host.
-    public sealed class PartidaDoWebhookService(IServiceScopeFactory escopos, ILogger<PartidaDoWebhookService> log) : BackgroundService
+    public sealed class PartidaDoWebhookService(
+        IServiceScopeFactory escopos, IConfiguration configuracao, ILogger<PartidaDoWebhookService> log) : BackgroundService
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // `Webhook:Partida:Ligada` (padrão ligado): os testes de integração desligam, o banco deles é compartilhado.
+            if (string.Equals(configuracao["Webhook:Partida:Ligada"], "false", StringComparison.OrdinalIgnoreCase))
+                return;
+
             try
             {
                 IReadOnlyList<long> pendentes;
