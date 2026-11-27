@@ -33,6 +33,7 @@ namespace Esteira.Application.Eventos
                     TiposDeEvento.AcaoAtualizada => doc.RootElement.Deserialize<AcaoAtualizada>(Opcoes),
                     TiposDeEvento.PipelineAtualizada => doc.RootElement.Deserialize<PipelineAtualizada>(Opcoes),
                     TiposDeEvento.FatiasMudaram => doc.RootElement.Deserialize<FatiasMudaram>(Opcoes),
+                    TiposDeEvento.EntregaAtualizada => doc.RootElement.Deserialize<EntregaAtualizada>(Opcoes),
                     _ => null
                 };
 
@@ -53,6 +54,8 @@ namespace Esteira.Application.Eventos
             AcaoAtualizada a => !string.IsNullOrWhiteSpace(a.FatiaCodigo) && a.AcaoId != Guid.Empty && !string.IsNullOrWhiteSpace(a.Estado),
             PipelineAtualizada p => p.ProjetoId != Guid.Empty && !string.IsNullOrWhiteSpace(p.Status),
             FatiasMudaram => true,
+            EntregaAtualizada x => x.EntregaId != Guid.Empty && x.FluxoId != Guid.Empty
+                && !string.IsNullOrWhiteSpace(x.Etapa) && !string.IsNullOrWhiteSpace(x.Estado),
             _ => false
         };
     }

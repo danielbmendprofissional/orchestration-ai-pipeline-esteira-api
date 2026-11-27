@@ -45,6 +45,8 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IAbrirPipeline, Esteira.Application.Entregas.Pipeline.AbrirPipelineHandler>();
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IProjetoPorCaminhoQuery, Esteira.Data.Entregas.ProjetoPorCaminhoQuery>();
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IDestinosDaPipelineQuery, Esteira.Data.Entregas.DestinosDaPipelineQuery>();
+            // E1b: `Features:E1b`, lida da configuração a cada uso.
+            services.AddScoped<Esteira.Application.Entregas.IOpcoesDaEntrega, OpcoesDaEntrega>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();
             services.AddScoped<Esteira.Domain.Eventos.IWebhookProjetoRepositorio, Esteira.Data.Eventos.WebhookProjetoRepositorio>();
