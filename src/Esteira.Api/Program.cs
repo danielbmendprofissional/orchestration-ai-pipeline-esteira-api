@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Newtonsoft.Json.Serialization;
 using Prometheus;
 using Scalar.AspNetCore;
@@ -105,6 +106,10 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioAtual, UsuarioAtual>();
 
 builder.Services.AddSessaoRedis(builder.Configuration);
+// Tempo real (T1.2): pub/sub no Redis + fan-out em memória para o SSE em /api/v1/eventos. Limites do stream: EventosOptions.
+builder.Services.AddEventosDeTempoReal(builder.Configuration);
+builder.Services.TryAddSingleton<Esteira.Api.Eventos.EventosOptions>();
+builder.Services.AddSingleton<Esteira.Api.Eventos.ConexoesDeEventos>();
 // Consumer da Ação do bot (P2b.2–P2b.4): executa abrir-review, aprovar e reprovar no GitLab, com retry das falhas transitórias.
 builder.Services.AddMensageria(builder.Configuration, builder.Environment.IsProduction(),
     x => x.AddConsumer<AcaoBotPedidaConsumer, AcaoBotPedidaConsumerDefinition>());
