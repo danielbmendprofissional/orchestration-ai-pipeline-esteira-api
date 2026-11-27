@@ -2,6 +2,7 @@ using Esteira.Api.Autenticacao;
 using Esteira.Api.Erros;
 using Esteira.Api.Middleware;
 using Esteira.Api.Paginacao;
+using Esteira.Api.Pipeline;
 using Esteira.Application.Interfaces.Usuario;
 using Esteira.Data.Common.Persistence;
 using Esteira.IoC;
@@ -76,7 +77,11 @@ builder.Services.AddDbContext<EsteiraReadContext>(options => options.UsarPostgre
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ErroInesperadoHandler>();
 
+// Dois documentos: `v1` (front, sessão) e `pipeline-v2` (pipeline, id_token); o GroupName do controller os separa (ADR-0013).
 builder.Services.AddOpenApi();
+// Rota sem grupo entra no `v1` (padrão do ASP.NET); o `pipeline-v2` só aceita o que declara o próprio grupo.
+builder.Services.AddOpenApi(PipelineV2Controller.DocumentoOpenApi, o =>
+    o.ShouldInclude = descricao => descricao.GroupName == PipelineV2Controller.DocumentoOpenApi);
 
 var keycloakAuthority = Configuracao.Obrigatoria(builder.Configuration, "Keycloak:Authority");
 builder.Services.Configure<AutenticacaoSettings>(builder.Configuration.GetSection(AutenticacaoSettings.Secao));
@@ -90,7 +95,9 @@ builder.Services.AddScoped<FluxoSessao>();
 // Sessão BFF (ADR-0004): cookie opaco -> sessão no Redis. Sem JWT Bearer.
 builder.Services
     .AddAuthentication(SessaoAuthenticationHandler.Esquema)
-    .AddScheme<AuthenticationSchemeOptions, SessaoAuthenticationHandler>(SessaoAuthenticationHandler.Esquema, null);
+    .AddScheme<AuthenticationSchemeOptions, SessaoAuthenticationHandler>(SessaoAuthenticationHandler.Esquema, null)
+    // `id_token` do GitLab na superfície /api/pipeline/v2 (E1.3).
+    .AddPipelineIdToken(builder.Configuration);
 // Sessão exigida por padrão em todo endpoint; quem não quer declara [AllowAnonymous].
 builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder(SessaoAuthenticationHandler.Esquema).RequireAuthenticatedUser().Build());
