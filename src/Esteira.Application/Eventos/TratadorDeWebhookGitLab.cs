@@ -1,9 +1,12 @@
 using System.Text.Json;
+using Esteira.Application.Common.Extensions;
+using Esteira.Application.Entregas;
 using Esteira.Application.Fatias;
 using Esteira.Application.Fatias.Decisoes;
 using Esteira.Application.Interfaces.Fatias;
 using Esteira.Application.Interfaces.UnitOfWork;
 using Esteira.Domain.Common.Resultados;
+using Esteira.Domain.Entregas;
 using Esteira.Domain.Fatias;
 using Microsoft.Extensions.Logging;
 
@@ -33,7 +36,11 @@ namespace Esteira.Application.Eventos
         ConclusaoDaAcaoBot conclusao,
         IDescarteDoPainel painel,
         IPublicadorDeEventos eventos,
-        ILogger<TratadorDeWebhookGitLab> log) : ITratadorDeWebhookGitLab
+        ILogger<TratadorDeWebhookGitLab> log,
+        IEntregaRepositorio? entregas = null,
+        IUnitOfWork? unitOfWork = null,
+        IOpcoesDaEntrega? opcoes = null,
+        TimeProvider? relogio = null) : ITratadorDeWebhookGitLab
     {
         public const string EventoPipeline = "Pipeline Hook";
         public const string EventoMergeRequest = "Merge Request Hook";
@@ -89,7 +96,78 @@ namespace Esteira.Application.Eventos
                 projeto.AplicacaoPublicId, projeto.ProjetoPublicId, pipelineId, status,
                 Texto(atributos, "ref") ?? string.Empty, Texto(atributos, "sha") ?? string.Empty), ct);
 
+            await AplicarNaEtapaAsync(projeto, pipelineId, status, Texto(atributos, "finished_at"), ct);
+
             return Result.Sucesso();
+        }
+
+        // E1b: a Etapa só é exibição, então nada aqui devolve erro ao webhook (no-op com log, sem corpo). Casa por id da
+        // pipeline e Projeto, nunca por SHA ou ref. Conflito de concorrência: recarrega o vencedor e reaplica uma vez.
+        private async Task AplicarNaEtapaAsync(ProjetoDoWebhook projeto, long pipelineId, string status, string? finishedAt, CancellationToken ct)
+        {
+            if (opcoes?.E1bLigada != true || entregas is null || unitOfWork is null)
+                return;
+
+            try
+            {
+                var achada = await entregas.ObterEtapaPorPipelineAsync(projeto.ProjetoId, pipelineId, ct);
+                if (achada is null)
+                    return;
+
+                var etapa = achada.Etapa;
+                var eventoEm = LerData(finishedAt) ?? (relogio ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+
+                for (var tentativa = 0; tentativa < 2; tentativa++)
+                {
+                    // Depois do conflito o vencedor pode ter guardado outra pipeline na Etapa (novo esteira-abrir): esta não é mais dela.
+                    if (etapa.PipelineGitLabId != pipelineId)
+                        return;
+
+                    var antes = (etapa.Estado, etapa.CodigoFalha);
+                    var aplicado = etapa.AplicarStatusDaPipeline(status, eventoEm);
+                    if (!aplicado.IsSuccess)
+                    {
+                        log.LogInformation("Pipeline {Pipeline}: Etapa {Etapa} não mudou (no-op): {Codigo}",
+                            pipelineId, EnumKebab.Texto(etapa.Etapa), aplicado.Errors.FirstOrDefault()?.Code);
+                        return;
+                    }
+                    if ((etapa.Estado, etapa.CodigoFalha) == antes)
+                        return;
+
+                    try
+                    {
+                        await unitOfWork.SaveChangesAsync();
+                    }
+                    catch (ConcorrenciaOtimistaException)
+                    {
+                        // Outra gravação (esteira-abrir ou outro webhook) levou a Etapa: relê o vencedor e decide de novo.
+                        await entregas.RecarregarAsync(etapa, ct);
+                        if (tentativa == 1)
+                            log.LogInformation("Pipeline {Pipeline}: conflito repetido na Etapa; o estado do vencedor prevalece.", pipelineId);
+                        continue;
+                    }
+
+                    await eventos.PublicarAsync(new EntregaAtualizada(projeto.AplicacaoPublicId, achada.EntregaPublicId, achada.FluxoPublicId,
+                        EnumKebab.Texto(etapa.Etapa), EnumKebab.Texto(etapa.Estado)), ct);
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                log.LogWarning(ex, "Pipeline {Pipeline}: falha ao aplicar o status à Etapa; webhook segue sem erro.", pipelineId);
+            }
+        }
+
+        // `finished_at` do GitLab: "2026-11-27 11:00:00 UTC" ou ISO 8601.
+        private static DateTime? LerData(string? texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto))
+                return null;
+            var limpo = texto.EndsWith(" UTC", StringComparison.Ordinal) ? texto[..^4] : texto;
+            return DateTime.TryParse(limpo, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var data)
+                ? data
+                : null;
         }
 
         // Só a Ação `abrir-review` em `executando` com esta pipeline. A segunda conclusão (webhook + consulta) é no-op: a lista

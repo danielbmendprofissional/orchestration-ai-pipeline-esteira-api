@@ -154,7 +154,24 @@ namespace Esteira.Application.Entregas.Pipeline
                     gravou = false;
                     var gravado = await entregas.ObterShaGravadoDoFluxoAsync(fluxo.Id, cancellationToken);
                     if (fluxoProcesso && gravado != entrada.Sha) return ShaDiferente;
-                    log?.LogInformation("esteira-abrir: conflito ao gravar a Etapa; o estado do vencedor prevalece");
+                    log?.LogInformation("esteira-abrir: conflito ao gravar a Etapa; relê o vencedor e reaplica");
+                    // E1b.3: o webhook pode ter gravado a Etapa primeiro. Relê o estado dele e reaplica o fato desta chamada
+                    // (o pipeline_id novo não se perde); segundo conflito: o vencedor prevalece, sem erro.
+                    if (mudancas.Count > 0)
+                    {
+                        foreach (var e in mudancas)
+                            await entregas.RecarregarAsync(e, cancellationToken);
+                        mudancas = AplicarEtapas(fluxo, entrada, ambiente, relogio.GetUtcNow().UtcDateTime);
+                        try
+                        {
+                            await unitOfWork.SaveChangesAsync();
+                            gravou = true;
+                        }
+                        catch (ConcorrenciaOtimistaException)
+                        {
+                            log?.LogInformation("esteira-abrir: segundo conflito na Etapa; o estado do vencedor prevalece");
+                        }
+                    }
                 }
             }
 
