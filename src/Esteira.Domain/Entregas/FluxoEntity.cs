@@ -9,6 +9,7 @@ namespace Esteira.Domain.Entregas
     public sealed partial class FluxoEntity : EntityBase
     {
         private readonly List<FluxoFatiaEntity> _fatias = [];
+        private readonly List<EtapaFluxoEntity> _etapas = [];
 
         private FluxoEntity() { }
 
@@ -20,8 +21,12 @@ namespace Esteira.Domain.Entregas
         // Nasce na confirmação em produção (E4b); fica nula aqui.
         public string? Versao { get; private set; }
         public IReadOnlyList<FluxoFatiaEntity> Fatias => _fatias;
+        // Abertura, QA, HML e PRD (E1b): criadas com o Fluxo.
+        public IReadOnlyList<EtapaFluxoEntity> Etapas => _etapas;
 
-        internal static Result<FluxoEntity> Criar(long projetoId, TipoMudanca tipo, IReadOnlyList<FatiaDaEntrega> fatias)
+        public EtapaFluxoEntity Etapa(EtapaDoFluxo etapa) => _etapas.Single(e => e.Etapa == etapa);
+
+        internal static Result<FluxoEntity> Criar(long projetoId, TipoMudanca tipo, IReadOnlyList<FatiaDaEntrega> fatias, DateTime abertaEm)
         {
             Guard.AgainstInvalidEnum<TipoMudanca>(tipo, nameof(tipo));
 
@@ -36,6 +41,10 @@ namespace Esteira.Domain.Entregas
 
                 fluxo._fatias.Add(new FluxoFatiaEntity(codigo, fatia.ComFlag));
             }
+
+            fluxo._etapas.Add(new EtapaFluxoEntity(EtapaDoFluxo.Abertura, EstadoEtapa.Concluido, abertaEm));
+            foreach (var etapa in new[] { EtapaDoFluxo.Qa, EtapaDoFluxo.Hml, EtapaDoFluxo.Prd })
+                fluxo._etapas.Add(new EtapaFluxoEntity(etapa, EstadoEtapa.NaoIniciado, abertaEm));
 
             return Result<FluxoEntity>.Sucesso(fluxo);
         }

@@ -10,7 +10,12 @@ namespace Esteira.Application.Eventos
         public const string AcaoAtualizada = "acao.atualizada";
         public const string PipelineAtualizada = "pipeline.atualizada";
         public const string FatiasMudaram = "fatias.mudaram";
+        public const string EntregaAtualizada = "entrega.atualizada";
     }
+
+    // E1b: uma Etapa do Fluxo mudou de estado. `Etapa` e `Estado` em kebab-case (qa, aguardando-aprovacao); o front recarrega a Entrega.
+    public sealed record EntregaAtualizada(Guid AplicacaoId, Guid EntregaId, Guid FluxoId, string Etapa, string Estado)
+        : EventoDeTempoReal(TiposDeEvento.EntregaAtualizada, AplicacaoId);
 
     // `Estado` em kebab-case (pedida, executando, confirmada, falhou, cancelada).
     public sealed record AcaoAtualizada(Guid AplicacaoId, string FatiaCodigo, Guid AcaoId, string Estado)

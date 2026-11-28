@@ -429,6 +429,65 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                     b.ToTable("Entrega", "esteira");
                 });
 
+            modelBuilder.Entity("Esteira.Domain.Entregas.EtapaFluxoEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AtualizadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CodigoFalha")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Etapa")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("FluxoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PipelineGitLabId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PuladaMotivo")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("PuladaPor")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UltimoEventoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("FluxoId", "Etapa")
+                        .IsUnique();
+
+                    b.ToTable("EtapaFluxo", "esteira");
+                });
+
             modelBuilder.Entity("Esteira.Domain.Entregas.FluxoEntity", b =>
                 {
                     b.Property<long>("Id")
@@ -915,6 +974,15 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Esteira.Domain.Entregas.EtapaFluxoEntity", b =>
+                {
+                    b.HasOne("Esteira.Domain.Entregas.FluxoEntity", null)
+                        .WithMany("Etapas")
+                        .HasForeignKey("FluxoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Esteira.Domain.Entregas.FluxoEntity", b =>
                 {
                     b.HasOne("Esteira.Domain.Entregas.EntregaEntity", null)
@@ -1013,6 +1081,8 @@ namespace Esteira.Data.Common.Persistence.Migracoes
 
             modelBuilder.Entity("Esteira.Domain.Entregas.FluxoEntity", b =>
                 {
+                    b.Navigation("Etapas");
+
                     b.Navigation("Fatias");
                 });
 #pragma warning restore 612, 618

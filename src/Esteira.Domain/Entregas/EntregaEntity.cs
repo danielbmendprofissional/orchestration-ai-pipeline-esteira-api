@@ -23,6 +23,9 @@ namespace Esteira.Domain.Entregas
         public DateTime AbertaEm { get; private set; }
         public IReadOnlyList<FluxoEntity> Fluxos => _fluxos;
 
+        // Calculado das Etapas dos Fluxos, nunca gravado (E1b).
+        public EstadoDaEntrega Estado => EstadoDaEntrega.Calcular(_fluxos.SelectMany(f => f.Etapas));
+
         public static Result<EntregaEntity> Abrir(AplicacaoEntity aplicacao, PessoaEntity pessoa, IReadOnlyList<FluxoDaEntrega> fluxos, DateTime abertaEm)
         {
             Guard.AgainstNull(aplicacao, nameof(aplicacao));
@@ -54,7 +57,7 @@ namespace Esteira.Domain.Entregas
                 if (!projetosVistos.Add(item.Projeto.PublicId))
                     return new Erro("entrega.fluxo-duplicado", "A Entrega só pode ter um Fluxo por Projeto.", TipoErro.Validation);
 
-                var fluxo = FluxoEntity.Criar(item.Projeto.Id, item.TipoMudanca, item.Fatias);
+                var fluxo = FluxoEntity.Criar(item.Projeto.Id, item.TipoMudanca, item.Fatias, abertaEm);
                 if (!fluxo.IsSuccess)
                     return Result<EntregaEntity>.Falha([.. fluxo.Errors]);
 

@@ -37,6 +37,25 @@ namespace Esteira.Data.Entregas.Write
             b.HasOne<ProjetoEntity>().WithMany().HasForeignKey(x => x.ProjetoId).OnDelete(DeleteBehavior.Restrict);
             b.HasMany(x => x.Fatias).WithOne().HasForeignKey(f => f.FluxoId).OnDelete(DeleteBehavior.Cascade);
             b.Navigation(x => x.Fatias).UsePropertyAccessMode(PropertyAccessMode.Field);
+            b.HasMany(x => x.Etapas).WithOne().HasForeignKey(e => e.FluxoId).OnDelete(DeleteBehavior.Cascade);
+            b.Navigation(x => x.Etapas).UsePropertyAccessMode(PropertyAccessMode.Field);
+        }
+    }
+
+    // E1b (spec 02-tela-da-entrega.md, "Dados"): uma linha por Fluxo e Etapa.
+    internal sealed class EtapaFluxoConfiguration : IEntityTypeConfiguration<EtapaFluxoEntity>
+    {
+        public void Configure(EntityTypeBuilder<EtapaFluxoEntity> b)
+        {
+            b.ConfigurarBase("EtapaFluxo");
+            b.Property(x => x.Etapa).HasConversion(new EnumKebabConverter<EtapaDoFluxo>());
+            b.Property(x => x.Estado).HasConversion(new EnumKebabConverter<EstadoEtapa>());
+            b.Property(x => x.CodigoFalha);
+            b.Property(x => x.PuladaPor).HasMaxLength(200);
+            b.Property(x => x.PuladaMotivo).HasMaxLength(1000);
+            // Concorrência otimista: esteira-abrir e webhook podem gravar a mesma Etapa juntos.
+            b.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+            b.HasIndex(x => new { x.FluxoId, x.Etapa }).IsUnique();
         }
     }
 
