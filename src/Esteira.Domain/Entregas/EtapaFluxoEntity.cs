@@ -7,7 +7,7 @@ namespace Esteira.Domain.Entregas
     // os demais estados (bloqueada, cancelado: E2/E3/E6).
     public enum EtapaDoFluxo { Abertura, Qa, Hml, Prd }
 
-    public enum EstadoEtapa { NaoIniciado, Executando, AguardandoAprovacao, Concluido, Pulada, Falhou }
+    public enum EstadoEtapa { NaoIniciado, Executando, AguardandoAprovacao, Concluido, Pulada, Falhou, Bloqueada }
 
     // Uma Etapa de um Fluxo (E1b). Só os métodos nomeados abaixo mudam o Estado, e recusam transição fora da tabela
     // (spec 02-tela-da-entrega.md, "Backend"). Quem chama (esteira-abrir, webhook) trata a recusa como no-op: a Etapa é só exibição.
@@ -36,15 +36,28 @@ namespace Esteira.Domain.Entregas
         public DateTime UltimoEventoEm { get; private set; }
         public DateTime AtualizadaEm { get; private set; }
 
-        // esteira-abrir aceito: nao-iniciado, falhou, executando ou aguardando-aprovacao -> executando.
+        // esteira-abrir aceito: nao-iniciado, falhou, bloqueada (reexecucao depois da correcao), executando ou aguardando-aprovacao -> executando.
         public Result IniciarExecucao(long? pipelineId, DateTime em)
         {
-            if (Estado is not (EstadoEtapa.NaoIniciado or EstadoEtapa.Falhou or EstadoEtapa.Executando or EstadoEtapa.AguardandoAprovacao))
+            if (Estado is not (EstadoEtapa.NaoIniciado or EstadoEtapa.Falhou or EstadoEtapa.Bloqueada or EstadoEtapa.Executando or EstadoEtapa.AguardandoAprovacao))
                 return TransicaoInvalida();
 
             Estado = EstadoEtapa.Executando;
             PipelineGitLabId = pipelineId;
             CodigoFalha = null;
+            Marcar(em);
+            return Result.Sucesso();
+        }
+
+        // Gate/resultado (E2): executando ou aguardando-aprovacao -> bloqueada, guardando o motivo em CodigoFalha. Fora disso,
+        // transicao invalida (no-op para quem chama). O webhook nao tira a Etapa daqui: so a reexecucao (IniciarExecucao).
+        public Result Bloquear(string motivo, DateTime em)
+        {
+            if (Estado is not (EstadoEtapa.Executando or EstadoEtapa.AguardandoAprovacao))
+                return TransicaoInvalida();
+
+            Estado = EstadoEtapa.Bloqueada;
+            CodigoFalha = motivo;
             Marcar(em);
             return Result.Sucesso();
         }
