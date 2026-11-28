@@ -46,6 +46,15 @@ namespace Esteira.Application.Tests.Auditoria
             mudancas.Should().ContainSingle().Which.Should().Be(new MudancaDto(campo, "••••", "••••"));
         }
 
+        [Fact, DisplayName("9: segredo dentro de lista (array) também é mascarado, sem vazar o valor")]
+        public void Segredo_EmLista()
+        {
+            var m = MudancasDeAuditoria.Montar(AcaoAuditoria.Criou, null, """{"destinos":[{"nome":"d","password":"p4ss"}]}""");
+
+            m.Should().Contain(new MudancaDto("destinos[0].password", "—", "••••"));
+            m.Should().NotContain(x => x.Depois.Contains("p4ss"));
+        }
+
         [Fact, DisplayName("9: segredo aninhado também é mascarado; segredo criado mostra antes — e depois ••••")]
         public void Segredo_Aninhado()
             => MudancasDeAuditoria.Montar(AcaoAuditoria.Criou, null, """{"destino":{"token":"abc","url":"x"}}""")

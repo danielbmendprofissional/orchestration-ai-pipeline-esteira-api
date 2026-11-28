@@ -61,12 +61,25 @@ namespace Esteira.Application.Auditoria
         private static void Achatar(JsonElement objeto, string prefixo, Dictionary<string, string> folhas)
         {
             foreach (var p in objeto.EnumerateObject())
+                Folha(p.Value, prefixo.Length == 0 ? p.Name : $"{prefixo}.{p.Name}", folhas);
+        }
+
+        // Lista vira `campo[i]...`: nome de segredo dentro dela também é achado e mascarado.
+        private static void Folha(JsonElement valor, string caminho, Dictionary<string, string> folhas)
+        {
+            switch (valor.ValueKind)
             {
-                var caminho = prefixo.Length == 0 ? p.Name : $"{prefixo}.{p.Name}";
-                if (p.Value.ValueKind == JsonValueKind.Object)
-                    Achatar(p.Value, caminho, folhas);
-                else
-                    folhas[caminho] = p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString()! : p.Value.GetRawText();
+                case JsonValueKind.Object:
+                    Achatar(valor, caminho, folhas);
+                    break;
+                case JsonValueKind.Array:
+                    var i = 0;
+                    foreach (var item in valor.EnumerateArray())
+                        Folha(item, $"{caminho}[{i++}]", folhas);
+                    break;
+                default:
+                    folhas[caminho] = valor.ValueKind == JsonValueKind.String ? valor.GetString()! : valor.GetRawText();
+                    break;
             }
         }
     }
