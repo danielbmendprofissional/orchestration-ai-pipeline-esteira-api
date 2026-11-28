@@ -17,6 +17,27 @@ namespace Esteira.Domain.Aplicacoes
         public long? WorkspaceGitLabId { get; private set; }
         public string? WorkspaceGitLabCaminho { get; private set; }
 
+        // X3: teto de custo por execução de agente do CI, em US$. Nulo = usa o padrão da Esteira.
+        public const decimal TetoCustoMinimoUsd = 0.10m;
+        public const decimal TetoCustoMaximoUsd = 50.00m;
+        public decimal? TetoCustoAgentesUsd { get; private set; }
+
+        public Result DefinirTetoCusto(decimal? valor)
+        {
+            if (valor is null)
+            {
+                TetoCustoAgentesUsd = null;
+                return Result.Sucesso();
+            }
+
+            var v = valor.Value;
+            if (v < TetoCustoMinimoUsd || v > TetoCustoMaximoUsd || decimal.Round(v, 2) != v)
+                return Result.Falha(new Erro("aplicacao.teto-invalido", "Informe um teto entre 0,10 e 50,00 (US$), com até 2 casas decimais.", TipoErro.Validation));
+
+            TetoCustoAgentesUsd = v;
+            return Result.Sucesso();
+        }
+
         public Result DefinirWorkspace(long projetoGitLabId, string? caminho)
         {
             if (projetoGitLabId <= 0 || string.IsNullOrWhiteSpace(caminho))
