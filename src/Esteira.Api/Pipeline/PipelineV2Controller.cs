@@ -41,7 +41,8 @@ namespace Esteira.Api.Pipeline
 
         public sealed record RespostaDoAbrir(
             [property: JsonProperty("feature_flags"), System.Text.Json.Serialization.JsonPropertyName("feature_flags")] string FeatureFlags,
-            [property: JsonProperty("destinos"), System.Text.Json.Serialization.JsonPropertyName("destinos")] IReadOnlyList<DestinoDoAbrir> Destinos);
+            [property: JsonProperty("destinos"), System.Text.Json.Serialization.JsonPropertyName("destinos")] IReadOnlyList<DestinoDoAbrir> Destinos,
+            [property: JsonProperty("teto_custo_usd"), System.Text.Json.Serialization.JsonPropertyName("teto_custo_usd")] decimal TetoCustoUsd);
 
         // Passos 1 e 2 aqui (id_token já autenticado pelo esquema; Projeto; corpo); 3–9 na porta `IAbrirPipeline` (E1.4).
         // O corpo é lido à mão para que JSON ilegível seja 422 pipeline.corpo-invalido, não o 400 genérico do model binding.
@@ -67,7 +68,8 @@ namespace Esteira.Api.Pipeline
 
             return Result<RespostaDoAbrir>.Sucesso(new RespostaDoAbrir(
                 resposta.Value.FeatureFlags,
-                resposta.Value.Destinos.Select(d => new DestinoDoAbrir(d.Nome, d.Ordem, d.Configuracao)).ToList()));
+                resposta.Value.Destinos.Select(d => new DestinoDoAbrir(d.Nome, d.Ordem, d.Configuracao)).ToList(),
+                resposta.Value.TetoCustoUsd));
         }
 
         private async Task<AbrirPipelineCorpo?> LerCorpoAsync(CancellationToken cancellationToken)

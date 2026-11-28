@@ -1,4 +1,5 @@
 using Esteira.Application.Common.Extensions;
+using Esteira.Application.Aplicacoes;
 using Esteira.Application.Eventos;
 using Esteira.Application.Interfaces.Aplicacoes;
 using Esteira.Application.Interfaces.UnitOfWork;
@@ -27,7 +28,7 @@ namespace Esteira.Application.Entregas.Pipeline
 
     public sealed record DestinoNaResposta(string Nome, int Ordem, IReadOnlyDictionary<string, string> Configuracao);
 
-    public sealed record AbrirPipelineResposta(string FeatureFlags, IReadOnlyList<DestinoNaResposta> Destinos);
+    public sealed record AbrirPipelineResposta(string FeatureFlags, IReadOnlyList<DestinoNaResposta> Destinos, decimal TetoCustoUsd);
 
     // Passos 3–9 do `esteira-abrir` (processo suportado, Entrega e Fluxo, Ambiente, SHA, Atalho, ocupação, resposta).
     public interface IAbrirPipeline
@@ -47,6 +48,12 @@ namespace Esteira.Application.Entregas.Pipeline
         Task<IReadOnlyList<DestinoNaResposta>> ListarAsync(long projetoId, AmbienteDeploy ambiente, CancellationToken cancellationToken = default);
     }
 
+    // Porta de leitura (X3): teto de custo dos agentes definido na Aplicação (nulo = usa o padrão da Esteira).
+    public interface ITetoCustoDaAplicacaoQuery
+    {
+        Task<decimal?> ObterAsync(long aplicacaoId, CancellationToken cancellationToken = default);
+    }
+
     // Passos 3 a 9 do `esteira-abrir`, em ordem e fail-closed. Nunca consulta o GitLab.
     public sealed class AbrirPipelineHandler(
         IProjetoPorCaminhoQuery projetosPorCaminho,
@@ -56,6 +63,8 @@ namespace Esteira.Application.Entregas.Pipeline
         IDestinosDaPipelineQuery destinos,
         IUnitOfWork unitOfWork,
         TimeProvider relogio,
+        ITetoCustoDaAplicacaoQuery tetoCusto,
+        IOpcoesDosAgentes opcoesAgentes,
         IAcessoAplicacaoQuery? acesso = null,
         IPublicadorDeEventos? eventos = null,
         IOpcoesDaEntrega? opcoes = null,
@@ -190,7 +199,8 @@ namespace Esteira.Application.Entregas.Pipeline
 
             // 9. Resposta.
             var lista = await destinos.ListarAsync(fluxo.ProjetoId, ambiente, cancellationToken);
-            return Result<AbrirPipelineResposta>.Sucesso(new AbrirPipelineResposta(fluxo.FeatureFlags(ambiente), lista));
+            var teto = await tetoCusto.ObterAsync(entrega.AplicacaoId, cancellationToken) ?? opcoesAgentes.TetoCustoPadraoUsd;
+            return Result<AbrirPipelineResposta>.Sucesso(new AbrirPipelineResposta(fluxo.FeatureFlags(ambiente), lista, teto));
         }
 
         // Tabela de fatos do `esteira-abrir` (spec E1b). Devolve só as Etapas que de fato mudaram.

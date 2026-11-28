@@ -95,7 +95,7 @@ namespace Esteira.Integration.Tests.Pipeline
             var handler = new AbrirPipelineHandler(
                 new ProjetoPorCaminhoQuery(leitura), new EntregaRepositorio(escrita), new ProjetoRepositorio(escrita),
                 new OcupacaoAmbienteRepositorio(escrita), new DestinosDaPipelineQuery(leitura),
-                new UnitOfWorkComBarreira(new UnitOfWork(escrita), barreira), TimeProvider.System, opcoes: new OpcoesLigadas());
+                new UnitOfWorkComBarreira(new UnitOfWork(escrita), barreira), TimeProvider.System, new TetoCustoDaAplicacaoQuery(leitura), new OpcoesAgentesFixas(), opcoes: new OpcoesLigadas());
             return await handler.ExecutarAsync(
                 new AbrirPipelineEntrada("fluxo", "qa", c.Entrega.PublicId, c.Fluxo.PublicId, CenarioDePipeline.Sha, c.Caminho,
                     PipelineNova.ToString(), null, null, null, false), Ct);

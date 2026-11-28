@@ -76,7 +76,7 @@ namespace Esteira.Application.Tests.Entregas
         }
 
         private AbrirPipelineHandler Handler()
-            => new(_porCaminho, _entregas, _projetos, _ocupacoes, _destinos, _uow, new Relogio(), _acesso, _eventos, _opcoes);
+            => new(_porCaminho, _entregas, _projetos, _ocupacoes, _destinos, _uow, new Relogio(), Substitute.For<ITetoCustoDaAplicacaoQuery>(), Substitute.For<Esteira.Application.Aplicacoes.IOpcoesDosAgentes>(), _acesso, _eventos, _opcoes);
 
         private AbrirPipelineEntrada Entrada(string process, string env, string? pipelineId = "555", string? por = null, string? motivo = null)
             => new(process, env, _entrega.PublicId, _fluxo.PublicId, Sha, Caminho, pipelineId, null, por, motivo, false);

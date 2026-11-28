@@ -102,5 +102,6 @@ namespace Esteira.Application.Aplicacoes
         public List<PoliticaDto> Politicas { get; set; } = [];
         public List<ProjetoResumoDto> Projetos { get; set; } = [];
         public List<PapelResumoDto> Papeis { get; set; } = [];
+        public Esteira.Application.Aplicacoes.Commands.DefinirTetoCusto.TetoCustoDto TetoCusto { get; set; } = new();
     }
 }

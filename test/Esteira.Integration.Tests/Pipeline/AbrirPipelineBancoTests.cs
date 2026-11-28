@@ -27,7 +27,7 @@ namespace Esteira.Integration.Tests.Pipeline
             await using var leitura = ContextoDoCadastro.NovoLeitura(infra);
             var handler = new AbrirPipelineHandler(
                 new ProjetoPorCaminhoQuery(leitura), new EntregaRepositorio(escrita), new ProjetoRepositorio(escrita),
-                new OcupacaoAmbienteRepositorio(escrita), new DestinosDaPipelineQuery(leitura), new UnitOfWork(escrita), TimeProvider.System);
+                new OcupacaoAmbienteRepositorio(escrita), new DestinosDaPipelineQuery(leitura), new UnitOfWork(escrita), TimeProvider.System, new TetoCustoDaAplicacaoQuery(leitura), new OpcoesAgentesFixas());
             var entrega = await escrita.Set<EntregaEntity>().AsNoTracking().FirstAsync(e => e.Id == fluxo.EntregaId, Ct);
             return await handler.ExecutarAsync(
                 new AbrirPipelineEntrada(process, env, entrega.PublicId, fluxo.PublicId, CenarioDePipeline.Sha, c.Caminho, "1", null, null, null, false), Ct);
@@ -53,7 +53,7 @@ namespace Esteira.Integration.Tests.Pipeline
             var handler = new AbrirPipelineHandler(
                 new ProjetoPorCaminhoQuery(leitura), new EntregaRepositorio(escrita), new ProjetoRepositorio(escrita),
                 new OcupacaoAmbienteRepositorio(escrita), new DestinosDaPipelineQuery(leitura),
-                new UnitOfWorkComBarreira(new UnitOfWork(escrita), barreira), TimeProvider.System);
+                new UnitOfWorkComBarreira(new UnitOfWork(escrita), barreira), TimeProvider.System, new TetoCustoDaAplicacaoQuery(leitura), new OpcoesAgentesFixas());
             return await handler.ExecutarAsync(
                 new AbrirPipelineEntrada("fluxo", "qa", c.Entrega.PublicId, c.Fluxo.PublicId, sha, c.Caminho, "1", null, null, null, false), Ct);
         }
@@ -116,7 +116,7 @@ namespace Esteira.Integration.Tests.Pipeline
                 new ProjetoPorCaminhoQuery(leitura), new EntregaRepositorio(escrita), new ProjetoRepositorio(escrita),
                 qa ? new OcupacaoAmbienteRepositorio(escrita) : new OcupacaoComBarreira(new OcupacaoAmbienteRepositorio(escrita), barreira, gravou),
                 new DestinosDaPipelineQuery(leitura),
-                qa ? new UnitOfWorkQaVenceCorrida(new UnitOfWork(escrita), barreira, gravou) : new UnitOfWork(escrita), TimeProvider.System);
+                qa ? new UnitOfWorkQaVenceCorrida(new UnitOfWork(escrita), barreira, gravou) : new UnitOfWork(escrita), TimeProvider.System, new TetoCustoDaAplicacaoQuery(leitura), new OpcoesAgentesFixas());
             return await handler.ExecutarAsync(
                 new AbrirPipelineEntrada("fluxo", env, c.Entrega.PublicId, c.Fluxo.PublicId, sha, c.Caminho, "1", null,
                     qa ? null : "fulano", qa ? null : "urgente", false), Ct);

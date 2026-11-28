@@ -28,6 +28,8 @@ namespace Esteira.Application.Tests.Entregas
         private readonly IOcupacaoAmbienteRepositorio _ocupacoes = Substitute.For<IOcupacaoAmbienteRepositorio>();
         private readonly IDestinosDaPipelineQuery _destinos = Substitute.For<IDestinosDaPipelineQuery>();
         private readonly IUnitOfWork _uow = Substitute.For<IUnitOfWork>();
+        private static readonly ITetoCustoDaAplicacaoQuery Teto = Substitute.For<ITetoCustoDaAplicacaoQuery>();
+        private static readonly Esteira.Application.Aplicacoes.IOpcoesDosAgentes Opcoes = Substitute.For<Esteira.Application.Aplicacoes.IOpcoesDosAgentes>();
         private readonly ProjetoEntity _projeto;
         private readonly EntregaEntity _entrega;
         private readonly FluxoEntity _fluxo;
@@ -62,7 +64,7 @@ namespace Esteira.Application.Tests.Entregas
         private void AmbienteSemCadastro(AmbienteDeploy a)
             => _projetos.ObterAmbienteAsync(10, a, Arg.Any<CancellationToken>()).Returns((AmbienteProjetoEntity?)null);
 
-        private AbrirPipelineHandler Handler() => new(_porCaminho, _entregas, _projetos, _ocupacoes, _destinos, _uow, new Relogio());
+        private AbrirPipelineHandler Handler() => new(_porCaminho, _entregas, _projetos, _ocupacoes, _destinos, _uow, new Relogio(), Teto, Opcoes);
 
         private AbrirPipelineEntrada Entrada(string process = "fluxo", string env = "qa", string sha = Sha, Guid? entrega = null,
             Guid? fluxo = null, string? atalhoPor = null, string? atalhoMotivo = null)

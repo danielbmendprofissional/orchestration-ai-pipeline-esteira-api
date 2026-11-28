@@ -76,7 +76,7 @@ namespace Esteira.Integration.Tests.Pipeline
 
         public Esteira.Domain.Common.Resultados.Result<AbrirPipelineResposta> Resposta { get; set; } =
             Esteira.Domain.Common.Resultados.Result<AbrirPipelineResposta>.Sucesso(
-                new AbrirPipelineResposta("B2=true", [new DestinoNaResposta("local", 1, new Dictionary<string, string> { ["K8S_NAMESPACE"] = "qa" })]));
+                new AbrirPipelineResposta("B2=true", [new DestinoNaResposta("local", 1, new Dictionary<string, string> { ["K8S_NAMESPACE"] = "qa" })], 2.00m));
 
         public Task<Esteira.Domain.Common.Resultados.Result<AbrirPipelineResposta>> ExecutarAsync(
             AbrirPipelineEntrada entrada, CancellationToken cancellationToken = default)
