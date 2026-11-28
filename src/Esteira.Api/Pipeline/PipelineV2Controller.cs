@@ -1,5 +1,6 @@
 using Esteira.Api.Erros;
 using Esteira.Application.Analises.Gate;
+using Esteira.Application.Analises.Resultado;
 using Esteira.Application.Entregas.Pipeline;
 using Esteira.Domain.Common.Resultados;
 using Microsoft.AspNetCore.Authorization;
@@ -14,7 +15,7 @@ namespace Esteira.Api.Pipeline
     [Route("api/pipeline/v2")]
     [ApiExplorerSettings(GroupName = DocumentoOpenApi)]
     [Authorize(AuthenticationSchemes = PipelineAutenticacao.Esquema)]
-    public class PipelineV2Controller(PorteiroDaPipeline porteiro, IAbrirPipeline abrir, IGateDaPipeline gate) : ControllerBase
+    public class PipelineV2Controller(PorteiroDaPipeline porteiro, IAbrirPipeline abrir, IGateDaPipeline gate, IResultadoDaPipeline resultado) : ControllerBase
     {
         public const string DocumentoOpenApi = "pipeline-v2";
 
@@ -111,6 +112,28 @@ namespace Esteira.Api.Pipeline
             var projetoDoToken = User.FindFirst(PipelineAutenticacao.ClaimProjeto)?.Value;
 
             var resposta = await gate.ExecutarAsync(projetoDoToken, corpo?.ParaEntrada(), cancellationToken);
+            if (!resposta.IsSuccess)
+                return Result<RespostaDoGate>.Falha(resposta.Errors.ToArray());
+
+            var c = resposta.Value.Contagem;
+            return Result<RespostaDoGate>.Sucesso(new RespostaDoGate(resposta.Value.Decisao, new ContagemDoGate(c.Critica, c.Alta, c.Media, c.Baixa)));
+        }
+
+        // E2.3: depois do deploy. So registra (ADR-0021): 200 mesmo quando a Politica seria violada; em qa/hml a Etapa vira
+        // bloqueada (barra a proxima promocao); em production nunca bloqueia. Sem flag, como o gate.
+        [HttpPost("resultado")]
+        [Consumes("application/json")]
+        [ProducesResponseType<RespostaDoGate>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<Result<RespostaDoGate>> Resultado(CancellationToken cancellationToken)
+        {
+            var corpo = await LerJsonAsync<CorpoDoGate>(TamanhoMaximoDoCorpoDoGate, cancellationToken);
+            var projetoDoToken = User.FindFirst(PipelineAutenticacao.ClaimProjeto)?.Value;
+
+            var resposta = await resultado.ExecutarAsync(projetoDoToken, corpo?.ParaEntrada(), cancellationToken);
             if (!resposta.IsSuccess)
                 return Result<RespostaDoGate>.Falha(resposta.Errors.ToArray());
 

@@ -55,6 +55,8 @@ namespace Esteira.IoC
             // E2.2: `esteira-gate` (rota, avaliacao pela Politica, bloqueio da Etapa).
             services.AddScoped<Esteira.Application.Analises.IAnaliseRepositorio, Esteira.Data.Analises.AnaliseRepositorio>();
             services.AddScoped<Esteira.Application.Analises.Gate.IGateDaPipeline, Esteira.Application.Analises.Gate.AvaliarGateHandler>();
+            // E2.3: `esteira-resultado` (so registra; bloqueia a Etapa em qa/hml).
+            services.AddScoped<Esteira.Application.Analises.Resultado.IResultadoDaPipeline, Esteira.Application.Analises.Resultado.RegistrarResultadoHandler>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IEntregaQuery, Esteira.Data.Entregas.EntregaQuery>();
             services.AddScoped<Esteira.Application.Analises.Queries.IAnaliseLeituraQuery, Esteira.Data.Analises.AnaliseLeituraQuery>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IUrlDoGitLab, UrlDoGitLab>();
