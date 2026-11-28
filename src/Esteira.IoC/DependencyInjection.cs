@@ -52,6 +52,9 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Application.Aplicacoes.IOpcoesDosAgentes, OpcoesDosAgentes>();
             // E2: ninguem tem Excecao ainda; a E2b troca a implementacao.
             services.AddScoped<Esteira.Application.Analises.IExcecoesVigentesQuery, Esteira.Data.Analises.SemExcecoesVigentesQuery>();
+            // E2.2: `esteira-gate` (rota, avaliacao pela Politica, bloqueio da Etapa).
+            services.AddScoped<Esteira.Application.Analises.IAnaliseRepositorio, Esteira.Data.Analises.AnaliseRepositorio>();
+            services.AddScoped<Esteira.Application.Analises.Gate.IGateDaPipeline, Esteira.Application.Analises.Gate.AvaliarGateHandler>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IEntregaQuery, Esteira.Data.Entregas.EntregaQuery>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IUrlDoGitLab, UrlDoGitLab>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
