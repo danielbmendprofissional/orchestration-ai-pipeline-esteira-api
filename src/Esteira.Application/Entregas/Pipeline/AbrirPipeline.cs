@@ -76,6 +76,7 @@ namespace Esteira.Application.Entregas.Pipeline
         private static readonly Erro SemArtefato = new("pipeline.sem-artefato", "O Fluxo ainda não tem Artefato registrado.", TipoErro.Conflict);
         private static readonly Erro ShaDiferente = new("pipeline.sha-diferente", "O SHA difere do registrado no Fluxo.", TipoErro.Conflict);
         private static readonly Erro AtalhoObrigatorio = new("pipeline.atalho-obrigatorio", "O Atalho exige atalho_por e atalho_motivo.", TipoErro.Failure);
+        private static readonly Erro EtapaAnteriorBloqueada = new("pipeline.etapa-anterior-bloqueada", "Uma Etapa anterior do Fluxo está bloqueada; corrija e reexecute antes de promover.", TipoErro.Conflict);
         private const int TentativasDeReserva = 3;
         private static readonly Erro ConflitoDeGravacao = new("pipeline.conflito-de-gravacao", "Outra gravação concorrente no mesmo Fluxo; tente de novo.", TipoErro.Conflict);
         private static readonly Erro CorpoInvalido = new("pipeline.corpo-invalido", "O corpo da requisição é inválido.", TipoErro.Failure);
@@ -115,6 +116,10 @@ namespace Esteira.Application.Entregas.Pipeline
                 var registro = fluxo.RegistrarSha(entrada.Sha);
                 if (!registro.IsSuccess) return Result<AbrirPipelineResposta>.Falha(registro.Errors.ToArray());
             }
+
+            // E2: Etapa anterior bloqueada (gate/resultado) barra a promoção. O Atalho não passa por aqui (qa e hml ficam puladas).
+            if (promocao && EtapasAnteriores(ambiente).Any(e => fluxo.Etapa(e).Estado == EstadoEtapa.Bloqueada))
+                return EtapaAnteriorBloqueada;
 
             // 7. Atalho (só `fluxo` em production; a promocao nunca o honra).
             var etapasLigadas = opcoes?.E1bLigada == true;
@@ -202,6 +207,13 @@ namespace Esteira.Application.Entregas.Pipeline
             var teto = await tetoCusto.ObterAsync(entrega.AplicacaoId, cancellationToken) ?? opcoesAgentes.TetoCustoPadraoUsd;
             return Result<AbrirPipelineResposta>.Sucesso(new AbrirPipelineResposta(fluxo.FeatureFlags(ambiente), lista, teto));
         }
+
+        private static EtapaDoFluxo[] EtapasAnteriores(AmbienteDeploy ambiente) => ambiente switch
+        {
+            AmbienteDeploy.Hml => [EtapaDoFluxo.Qa],
+            AmbienteDeploy.Producao => [EtapaDoFluxo.Qa, EtapaDoFluxo.Hml],
+            _ => []
+        };
 
         // Tabela de fatos do `esteira-abrir` (spec E1b). Devolve só as Etapas que de fato mudaram.
         private List<EtapaFluxoEntity> AplicarEtapas(FluxoEntity fluxo, AbrirPipelineEntrada entrada, AmbienteDeploy ambiente, DateTime em)

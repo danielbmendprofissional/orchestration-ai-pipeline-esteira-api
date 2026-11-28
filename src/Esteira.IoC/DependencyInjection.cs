@@ -50,7 +50,15 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Application.Entregas.IOpcoesDaEntrega, OpcoesDaEntrega>();
             // X3: `Pipeline:TetoCustoPadraoUsd` (X3.3 consolida o uso no esteira-abrir e no detalhe).
             services.AddScoped<Esteira.Application.Aplicacoes.IOpcoesDosAgentes, OpcoesDosAgentes>();
+            // E2: ninguem tem Excecao ainda; a E2b troca a implementacao.
+            services.AddScoped<Esteira.Application.Analises.IExcecoesVigentesQuery, Esteira.Data.Analises.SemExcecoesVigentesQuery>();
+            // E2.2: `esteira-gate` (rota, avaliacao pela Politica, bloqueio da Etapa).
+            services.AddScoped<Esteira.Application.Analises.IAnaliseRepositorio, Esteira.Data.Analises.AnaliseRepositorio>();
+            services.AddScoped<Esteira.Application.Analises.Gate.IGateDaPipeline, Esteira.Application.Analises.Gate.AvaliarGateHandler>();
+            // E2.3: `esteira-resultado` (so registra; bloqueia a Etapa em qa/hml).
+            services.AddScoped<Esteira.Application.Analises.Resultado.IResultadoDaPipeline, Esteira.Application.Analises.Resultado.RegistrarResultadoHandler>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IEntregaQuery, Esteira.Data.Entregas.EntregaQuery>();
+            services.AddScoped<Esteira.Application.Analises.Queries.IAnaliseLeituraQuery, Esteira.Data.Analises.AnaliseLeituraQuery>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IUrlDoGitLab, UrlDoGitLab>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();

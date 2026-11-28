@@ -1,4 +1,6 @@
 using Esteira.Api.Erros;
+using Esteira.Application.Analises.Gate;
+using Esteira.Application.Analises.Resultado;
 using Esteira.Application.Entregas.Pipeline;
 using Esteira.Domain.Common.Resultados;
 using Microsoft.AspNetCore.Authorization;
@@ -13,11 +15,13 @@ namespace Esteira.Api.Pipeline
     [Route("api/pipeline/v2")]
     [ApiExplorerSettings(GroupName = DocumentoOpenApi)]
     [Authorize(AuthenticationSchemes = PipelineAutenticacao.Esquema)]
-    public class PipelineV2Controller(PorteiroDaPipeline porteiro, IAbrirPipeline abrir) : ControllerBase
+    public class PipelineV2Controller(PorteiroDaPipeline porteiro, IAbrirPipeline abrir, IGateDaPipeline gate, IResultadoDaPipeline resultado) : ControllerBase
     {
         public const string DocumentoOpenApi = "pipeline-v2";
 
         private const int TamanhoMaximoDoCorpo = 64 * 1024;
+        // `esteira-gate` leva Achados de varias ferramentas: ate 2 MB (spec E2).
+        private const int TamanhoMaximoDoCorpoDoGate = 2 * 1024 * 1024;
 
         public sealed class CorpoDoAbrir
         {
@@ -43,6 +47,120 @@ namespace Esteira.Api.Pipeline
             [property: JsonProperty("feature_flags"), System.Text.Json.Serialization.JsonPropertyName("feature_flags")] string FeatureFlags,
             [property: JsonProperty("destinos"), System.Text.Json.Serialization.JsonPropertyName("destinos")] IReadOnlyList<DestinoDoAbrir> Destinos,
             [property: JsonProperty("teto_custo_usd"), System.Text.Json.Serialization.JsonPropertyName("teto_custo_usd")] decimal TetoCustoUsd);
+
+        public sealed class CorpoDoGate
+        {
+            [JsonProperty("process"), System.Text.Json.Serialization.JsonPropertyName("process")] public string? Process { get; set; }
+            [JsonProperty("env"), System.Text.Json.Serialization.JsonPropertyName("env")] public string? Env { get; set; }
+            [JsonProperty("entrega_id"), System.Text.Json.Serialization.JsonPropertyName("entrega_id")] public string? EntregaId { get; set; }
+            [JsonProperty("fluxo_id"), System.Text.Json.Serialization.JsonPropertyName("fluxo_id")] public string? FluxoId { get; set; }
+            [JsonProperty("sha"), System.Text.Json.Serialization.JsonPropertyName("sha")] public string? Sha { get; set; }
+            [JsonProperty("projeto"), System.Text.Json.Serialization.JsonPropertyName("projeto")] public string? Projeto { get; set; }
+            [JsonProperty("pipeline_id"), System.Text.Json.Serialization.JsonPropertyName("pipeline_id")] public string? PipelineId { get; set; }
+            [JsonProperty("analises"), System.Text.Json.Serialization.JsonPropertyName("analises")] public List<AnaliseDoGate?>? Analises { get; set; }
+
+            internal GateCorpo ParaEntrada() => new(
+                Process, Env, EntregaId, FluxoId, Sha, Projeto, PipelineId,
+                Analises?.Select(a => a is null ? null! : new GateAnaliseCorpo(
+                    a.Fonte, a.Tipo, a.Escopo, a.Veredito, a.Destino, a.CustoUsd,
+                    a.Achados?.Select(x => x is null ? null! : new GateAchadoCorpo(x.Severidade, x.Titulo, x.RegraId, x.Arquivo, x.Linha, x.Descricao)).ToList()))
+                    .ToList());
+        }
+
+        public sealed class AnaliseDoGate
+        {
+            [JsonProperty("fonte"), System.Text.Json.Serialization.JsonPropertyName("fonte")] public string? Fonte { get; set; }
+            [JsonProperty("tipo"), System.Text.Json.Serialization.JsonPropertyName("tipo")] public string? Tipo { get; set; }
+            [JsonProperty("escopo"), System.Text.Json.Serialization.JsonPropertyName("escopo")] public string? Escopo { get; set; }
+            [JsonProperty("veredito"), System.Text.Json.Serialization.JsonPropertyName("veredito")] public string? Veredito { get; set; }
+            [JsonProperty("destino"), System.Text.Json.Serialization.JsonPropertyName("destino")] public string? Destino { get; set; }
+            [JsonProperty("custo_usd"), System.Text.Json.Serialization.JsonPropertyName("custo_usd")] public decimal? CustoUsd { get; set; }
+            [JsonProperty("achados"), System.Text.Json.Serialization.JsonPropertyName("achados")] public List<AchadoDoGate?>? Achados { get; set; }
+        }
+
+        public sealed class AchadoDoGate
+        {
+            [JsonProperty("severidade"), System.Text.Json.Serialization.JsonPropertyName("severidade")] public string? Severidade { get; set; }
+            [JsonProperty("titulo"), System.Text.Json.Serialization.JsonPropertyName("titulo")] public string? Titulo { get; set; }
+            [JsonProperty("regra_id"), System.Text.Json.Serialization.JsonPropertyName("regra_id")] public string? RegraId { get; set; }
+            [JsonProperty("arquivo"), System.Text.Json.Serialization.JsonPropertyName("arquivo")] public string? Arquivo { get; set; }
+            [JsonProperty("linha"), System.Text.Json.Serialization.JsonPropertyName("linha")] public int? Linha { get; set; }
+            [JsonProperty("descricao"), System.Text.Json.Serialization.JsonPropertyName("descricao")] public string? Descricao { get; set; }
+        }
+
+        public sealed record ContagemDoGate(
+            [property: JsonProperty("critica"), System.Text.Json.Serialization.JsonPropertyName("critica")] int Critica,
+            [property: JsonProperty("alta"), System.Text.Json.Serialization.JsonPropertyName("alta")] int Alta,
+            [property: JsonProperty("media"), System.Text.Json.Serialization.JsonPropertyName("media")] int Media,
+            [property: JsonProperty("baixa"), System.Text.Json.Serialization.JsonPropertyName("baixa")] int Baixa);
+
+        public sealed record RespostaDoGate(
+            [property: JsonProperty("decisao"), System.Text.Json.Serialization.JsonPropertyName("decisao")] string Decisao,
+            [property: JsonProperty("contagem"), System.Text.Json.Serialization.JsonPropertyName("contagem")] ContagemDoGate Contagem);
+
+        // E2.2: Analises da pipeline. Qualquer 4xx reprova a pipeline; sem flag (um gate "desligado" seria bypass).
+        [HttpPost("gate")]
+        [Consumes("application/json")]
+        [ProducesResponseType<RespostaDoGate>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<Result<RespostaDoGate>> Gate(CancellationToken cancellationToken)
+        {
+            var corpo = await LerJsonAsync<CorpoDoGate>(TamanhoMaximoDoCorpoDoGate, cancellationToken);
+            var projetoDoToken = User.FindFirst(PipelineAutenticacao.ClaimProjeto)?.Value;
+
+            var resposta = await gate.ExecutarAsync(projetoDoToken, corpo?.ParaEntrada(), cancellationToken);
+            if (!resposta.IsSuccess)
+                return Result<RespostaDoGate>.Falha(resposta.Errors.ToArray());
+
+            var c = resposta.Value.Contagem;
+            return Result<RespostaDoGate>.Sucesso(new RespostaDoGate(resposta.Value.Decisao, new ContagemDoGate(c.Critica, c.Alta, c.Media, c.Baixa)));
+        }
+
+        // E2.3: depois do deploy. So registra (ADR-0021): 200 mesmo quando a Politica seria violada; em qa/hml a Etapa vira
+        // bloqueada (barra a proxima promocao); em production nunca bloqueia. Sem flag, como o gate.
+        [HttpPost("resultado")]
+        [Consumes("application/json")]
+        [ProducesResponseType<RespostaDoGate>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<Result<RespostaDoGate>> Resultado(CancellationToken cancellationToken)
+        {
+            var corpo = await LerJsonAsync<CorpoDoGate>(TamanhoMaximoDoCorpoDoGate, cancellationToken);
+            var projetoDoToken = User.FindFirst(PipelineAutenticacao.ClaimProjeto)?.Value;
+
+            var resposta = await resultado.ExecutarAsync(projetoDoToken, corpo?.ParaEntrada(), cancellationToken);
+            if (!resposta.IsSuccess)
+                return Result<RespostaDoGate>.Falha(resposta.Errors.ToArray());
+
+            var c = resposta.Value.Contagem;
+            return Result<RespostaDoGate>.Sucesso(new RespostaDoGate(resposta.Value.Decisao, new ContagemDoGate(c.Critica, c.Alta, c.Media, c.Baixa)));
+        }
+
+        // JSON ilegivel, vazio ou acima do limite = nulo (o handler responde 422 pipeline.corpo-invalido).
+        private async Task<T?> LerJsonAsync<T>(int limite, CancellationToken cancellationToken) where T : class
+        {
+            if (Request.ContentLength > limite)
+                return null;
+
+            try
+            {
+                using var leitor = new StreamReader(Request.Body);
+                var buffer = new char[limite + 1];
+                var lidos = await leitor.ReadBlockAsync(buffer.AsMemory(), cancellationToken);
+                if (lidos is 0 || lidos > limite)
+                    return null;
+                return JsonConvert.DeserializeObject<T>(new string(buffer, 0, lidos));
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
 
         // Passos 1 e 2 aqui (id_token já autenticado pelo esquema; Projeto; corpo); 3–9 na porta `IAbrirPipeline` (E1.4).
         // O corpo é lido à mão para que JSON ilegível seja 422 pipeline.corpo-invalido, não o 400 genérico do model binding.
