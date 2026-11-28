@@ -72,6 +72,8 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Application.Eventos.PartidaDoWebhook>();
             services.AddScoped<IPapelQuery, PapelQuery>();
             services.AddScoped<IPessoaQuery, PessoaQuery>();
+            services.AddScoped<Esteira.Application.Auditoria.IEscopoDeAuditoria, Esteira.Application.Auditoria.EscopoDeAuditoria>();
+            services.AddScoped<Esteira.Application.Interfaces.Auditoria.IAuditoriaQuery, AuditoriaQuery>();
 
             //Feature
             var application = typeof(ValidationBehavior<,>).Assembly;
