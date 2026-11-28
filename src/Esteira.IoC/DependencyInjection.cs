@@ -56,6 +56,7 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Application.Analises.IAnaliseRepositorio, Esteira.Data.Analises.AnaliseRepositorio>();
             services.AddScoped<Esteira.Application.Analises.Gate.IGateDaPipeline, Esteira.Application.Analises.Gate.AvaliarGateHandler>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IEntregaQuery, Esteira.Data.Entregas.EntregaQuery>();
+            services.AddScoped<Esteira.Application.Analises.Queries.IAnaliseLeituraQuery, Esteira.Data.Analises.AnaliseLeituraQuery>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IUrlDoGitLab, UrlDoGitLab>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();
             services.AddScoped<IAcaoBotRepositorio, AcaoBotRepositorio>();
