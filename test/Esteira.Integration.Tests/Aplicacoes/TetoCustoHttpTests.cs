@@ -156,7 +156,7 @@ namespace Esteira.Integration.Tests.Aplicacoes
             (corpo.GetProperty("padraoUsd").GetDecimal(), corpo.GetProperty("efetivoUsd").GetDecimal()).Should().Be((2.00m, 2.00m));
         }
 
-        [Fact, DisplayName("Critério 1: valor fora da faixa responde 422 aplicacao.teto-invalido")]
+        [Fact, DisplayName("Critério 1: valor fora da faixa responde 400 aplicacao.teto-invalido")]
         public async Task Invalido()
         {
             var id = await AplicacaoAsync();
@@ -164,7 +164,7 @@ namespace Esteira.Integration.Tests.Aplicacoes
 
             var resposta = await PutAsync(_ligada, id, sessao, """{ "tetoCustoUsd": 50.01 }""");
 
-            resposta.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+            resposta.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             (await CodigoDoErroAsync(resposta)).Should().Be("aplicacao.teto-invalido");
         }
 
