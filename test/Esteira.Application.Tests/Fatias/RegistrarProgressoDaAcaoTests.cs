@@ -66,7 +66,7 @@ namespace Esteira.Application.Tests.Fatias
         private void NadaMudou()
         {
             _uow.DidNotReceive().SaveChangesAsync();
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             _painel.DidNotReceiveWithAnyArgs().DescartarAsync(default!, default);
         }
 
@@ -86,7 +86,31 @@ namespace Esteira.Application.Tests.Fatias
             acao.AtualizadaEm.Should().Be(Agora);
             acao.CodigoErro.Should().Be(para == EstadoAcaoBot.Falhou ? "gitlab.merge-conflito" : null);
             await _uow.Received(1).SaveChangesAsync();
-            _auditoria.Received(1).Registrar("AcaoBot", acao.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(1).Registrar("AcaoBot", acao.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
+        }
+
+        [Fact, Trait("Fatia", "X1"), DisplayName("X1 critério 10: o executor (padrão) grava a transição com origem bot, categoria fatias e Aplicação")]
+        public async Task Audita_como_bot_por_padrao()
+        {
+            var acao = Acao(1, 71, EstadoAcaoBot.Pedida);
+
+            await Servico().RegistrarAsync(acao.PublicId, EstadoAcaoBot.Executando, null, Ct);
+
+            _auditoria.Received(1).Registrar("AcaoBot", acao.PublicId, AcaoAuditoria.Alterou, Arg.Any<object?>(), Arg.Any<object?>(),
+                Arg.Is<DadosDoRegistro>(d => d.AplicacaoId == AppId && d.Categoria == CategoriaAuditoria.Fatias
+                    && d.Origem == OrigemAuditoria.Bot && d.ObjetoCodigo == "P2"));
+        }
+
+        [Fact, Trait("Fatia", "X1"), DisplayName("X1 critério 10: a conclusão vinda do webhook grava origem pipeline com o nome 'pipeline #<n>'")]
+        public async Task Audita_como_pipeline_quando_vem_do_webhook()
+        {
+            var acao = Acao(1, 71, EstadoAcaoBot.Executando);
+            acao.RegistrarPipeline(555);
+
+            await Servico().RegistrarAsync(acao.PublicId, EstadoAcaoBot.Confirmada, null, Ct, OrigemAuditoria.Pipeline);
+
+            _auditoria.Received(1).Registrar("AcaoBot", acao.PublicId, AcaoAuditoria.Alterou, Arg.Any<object?>(), Arg.Any<object?>(),
+                Arg.Is<DadosDoRegistro>(d => d.Origem == OrigemAuditoria.Pipeline && d.UsuarioNome == "pipeline #555" && d.AplicacaoId == AppId));
         }
 
         [Theory, DisplayName("11: qualquer outra transição é rejeitada (acao-bot.transicao-invalida, 409) sem salvar, auditar nem descartar")]
@@ -181,8 +205,8 @@ namespace Esteira.Application.Tests.Fatias
             api.Estado.Should().Be(EstadoAcaoBot.Falhou);
             front.Estado.Should().Be(EstadoAcaoBot.Cancelada);
             outraApi.Estado.Should().Be(EstadoAcaoBot.Pedida);
-            _auditoria.Received(1).Registrar("AcaoBot", api.PublicId, AcaoAuditoria.Alterou, Arg.Any<object?>(), Arg.Any<object?>());
-            _auditoria.Received(1).Registrar("AcaoBot", front.PublicId, AcaoAuditoria.Alterou, Arg.Any<object?>(), Arg.Any<object?>());
+            _auditoria.Received(1).Registrar("AcaoBot", api.PublicId, AcaoAuditoria.Alterou, Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<DadosDoRegistro>());
+            _auditoria.Received(1).Registrar("AcaoBot", front.PublicId, AcaoAuditoria.Alterou, Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<DadosDoRegistro>());
             await _uow.Received(1).SaveChangesAsync();
             await _painel.Received(1).DescartarAsync(_appPublicId.ToString(), Arg.Any<CancellationToken>());
         }

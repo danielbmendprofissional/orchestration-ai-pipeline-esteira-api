@@ -20,7 +20,8 @@ namespace Esteira.Application.Fatias.Decisoes
         private static readonly Erro NaoEncontrada = new("acao-bot.nao-encontrada", "Ação do bot não encontrada.", TipoErro.NotFound);
 
         public async Task<Result> RegistrarAsync(
-            Guid acaoPublicId, EstadoAcaoBot estado, string? codigoErro = null, CancellationToken cancellationToken = default)
+            Guid acaoPublicId, EstadoAcaoBot estado, string? codigoErro = null, CancellationToken cancellationToken = default,
+            OrigemAuditoria origem = OrigemAuditoria.Bot)
         {
             var acao = await acoes.ObterPorPublicIdAsync(acaoPublicId, cancellationToken);
             if (acao is null)
@@ -41,7 +42,7 @@ namespace Esteira.Application.Fatias.Decisoes
             if (!transicao.IsSuccess)
                 return transicao;
 
-            auditoria.Registrar("AcaoBot", acao.PublicId, AcaoAuditoria.Alterou, antes, Instantaneo(acao));
+            auditoria.Registrar("AcaoBot", acao.PublicId, AcaoAuditoria.Alterou, antes, Instantaneo(acao), Dados(acao, origem));
 
             var mudaram = new List<AcaoBotEntity> { acao };
 
@@ -56,7 +57,7 @@ namespace Esteira.Application.Fatias.Decisoes
                         continue;
 
                     mudaram.Add(dependente);
-                    auditoria.Registrar("AcaoBot", dependente.PublicId, AcaoAuditoria.Alterou, antesDep, Instantaneo(dependente));
+                    auditoria.Registrar("AcaoBot", dependente.PublicId, AcaoAuditoria.Alterou, antesDep, Instantaneo(dependente), Dados(dependente, origem));
                 }
             }
 
@@ -76,6 +77,12 @@ namespace Esteira.Application.Fatias.Decisoes
 
             return Result.Sucesso();
         }
+
+        // `pipeline #<n>`: o nome vem da pipeline que a Ação acompanha; o executor e a consulta periódica agem como `bot`.
+        private static DadosDoRegistro Dados(AcaoBotEntity a, OrigemAuditoria origem) => new(
+            a.AplicacaoId, CategoriaAuditoria.Fatias, origem,
+            origem == OrigemAuditoria.Pipeline && a.PipelineId is { } n ? $"pipeline #{n}" : null,
+            ObjetoCodigo: a.FatiaCodigo);
 
         private static object Instantaneo(AcaoBotEntity a) => new { Estado = EnumKebab.Texto(a.Estado), a.CodigoErro };
     }

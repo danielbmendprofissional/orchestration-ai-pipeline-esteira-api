@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using AwesomeAssertions;
+using Esteira.Application.Interfaces.Auditoria;
 using Esteira.Application.Aplicacoes;
 using Esteira.Application.Aplicacoes.Commands.AlterarProjeto;
 using Esteira.Application.Aplicacoes.Commands.SubstituirDependencias;
@@ -42,7 +43,17 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.IsSuccess.Should().BeTrue();
             (Projeto.Stack, Projeto.Ativo).Should().Be((Stack.Angular, false));
-            Auditoria.Received(1).Registrar("Projeto", Projeto.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            Auditoria.Received(1).Registrar("Projeto", Projeto.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
+        }
+
+        [Fact, Trait("Fatia", "X1"), DisplayName("X1 critério 1: alterar o Projeto grava a Aplicação dona, categoria cadastro e origem tela")]
+        public async Task Altera_AuditaComAplicacao()
+        {
+            await new AlterarProjetoHandler(Autorizacao, Projetos, Auditoria)
+                .Handle(new AlterarProjetoCommand(Projeto.PublicId, "angular", false), Ct);
+
+            Auditoria.Received(1).Registrar("Projeto", Projeto.PublicId, AcaoAuditoria.Alterou, Arg.Any<object?>(), Arg.Any<object?>(),
+                Arg.Is<DadosDoRegistro>(d => d.AplicacaoId == AplicacaoId && d.Categoria == CategoriaAuditoria.Cadastro && d.Origem == OrigemAuditoria.Tela));
         }
 
         [Fact, DisplayName("Projeto inexistente responde projeto.nao-encontrado")]
@@ -90,7 +101,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             r.IsSuccess.Should().BeTrue();
             Projetos.Received(1).RemoverDependencia(antiga);
             adicionadas.Select(d => (d.ProjetoId, d.DependeDeProjetoId)).Should().BeEquivalentTo([(10L, 12L), (10L, 13L)]);
-            Auditoria.Received(1).Registrar("Projeto", Projeto.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            Auditoria.Received(1).Registrar("Projeto", Projeto.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
         }
 
         [Fact, DisplayName("Critério 15: manter uma dependência já gravada não a remove nem a duplica")]
@@ -125,7 +136,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("projeto.dependencia-invalida");
             await Projetos.DidNotReceiveWithAnyArgs().AdicionarDependenciaAsync(default!, default);
-            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Critério 15: dependência do próprio Projeto é recusada")]

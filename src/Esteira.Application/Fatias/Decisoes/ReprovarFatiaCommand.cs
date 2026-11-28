@@ -90,7 +90,7 @@ namespace Esteira.Application.Fatias.Decisoes
                     {
                         Fatia = acao.FatiaCodigo, Tipo = EnumKebab.Texto(acao.Tipo), Estado = EnumKebab.Texto(acao.Estado),
                         acao.ProjetoId, acao.MrIid, acao.ChaveIdempotencia
-                    });
+                    }, new DadosDoRegistro(acao.AplicacaoId, CategoriaAuditoria.Fatias, ObjetoCodigo: acao.FatiaCodigo));
                     await publicador.Publish(
                         new AcaoBotPedida(acao.PublicId, EnumKebab.Texto(acao.Tipo), acao.FatiaCodigo, acao.ChaveIdempotencia), cancellationToken);
                     criadas.Add(acao);

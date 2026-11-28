@@ -86,7 +86,7 @@ namespace Esteira.Application.Tests.Fatias
         private void NadaGravado()
         {
             _acoes.DidNotReceiveWithAnyArgs().AdicionarAsync(default!, default);
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             _publicador.DidNotReceiveWithAnyArgs().Publish(default(AcaoBotPedida)!, default);
             _uow.DidNotReceive().SaveChangesAsync();
         }
@@ -105,7 +105,7 @@ namespace Esteira.Application.Tests.Fatias
             api.ChaveIdempotencia.Should().Be("5:P2:abrir-review:71:3:1");
             front.MrIid.Should().Be(8);
             r.Value.Acoes.Select(a => a.Repositorio).Should().BeEquivalentTo(["api", "frontend"]);
-            _auditoria.Received(2).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(2).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
             await _publicador.Received(2).Publish(Arg.Any<AcaoBotPedida>(), Arg.Any<CancellationToken>());
             await _publicador.Received(1).Publish(
                 Arg.Is<AcaoBotPedida>(m => m.AcaoId == api.PublicId && m.ChaveIdempotencia == api.ChaveIdempotencia), Arg.Any<CancellationToken>());

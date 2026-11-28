@@ -66,7 +66,20 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             await Executar();
 
-            _auditoria.Received(1).Registrar("Aplicacao", gravada!.PublicId, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(1).Registrar("Aplicacao", gravada!.PublicId, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
+        }
+
+        [Fact, Trait("Fatia", "X1"), DisplayName("X1 critérios 1 e 10: a criação grava origem tela, categoria cadastro e a Aplicação criada")]
+        public async Task Cria_AuditaComAplicacao()
+        {
+            AplicacaoEntity? gravada = null;
+            await _repo.AdicionarAsync(Arg.Do<AplicacaoEntity>(a => gravada = a), Arg.Any<CancellationToken>());
+            _uow.SaveChangesAsync().Returns(_ => { typeof(Esteira.Domain.Common.Base.EntityBase).GetProperty("Id")!.SetValue(gravada, 77L); return Task.FromResult(1); });
+
+            await Executar();
+
+            _auditoria.Received(1).Registrar("Aplicacao", gravada!.PublicId, AcaoAuditoria.Criou, Arg.Any<object?>(), Arg.Any<object?>(),
+                Arg.Is<DadosDoRegistro>(d => d.AplicacaoId == 77 && d.Categoria == CategoriaAuditoria.Cadastro && d.Origem == OrigemAuditoria.Tela));
         }
 
         [Fact, DisplayName("Critério 2: recusa sigla repetida (aplicacao.sigla-duplicada) sem consultar o GitLab")]

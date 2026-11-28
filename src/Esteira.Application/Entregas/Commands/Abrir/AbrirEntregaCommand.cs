@@ -1,6 +1,8 @@
+using Esteira.Application.Common.Extensions;
 using Esteira.Application.Aplicacoes;
 using Esteira.Application.Fatias.Decisoes;
 using Esteira.Application.Interfaces.Aplicacoes;
+using Esteira.Application.Interfaces.Auditoria;
 using Esteira.Application.Interfaces.Transaction;
 using Esteira.Application.Interfaces.Usuario;
 using Esteira.Domain.Aplicacoes;
@@ -27,6 +29,7 @@ namespace Esteira.Application.Entregas.Commands.Abrir
         IPessoaRepositorio pessoas,
         IEntregaRepositorio entregas,
         IUsuarioAtual usuario,
+        IAuditoria auditoria,
         TimeProvider relogio) : IRequestHandler<AbrirEntregaCommand, Result<Guid>>
     {
         private static readonly Erro SemPermissao = new(
@@ -71,6 +74,9 @@ namespace Esteira.Application.Entregas.Commands.Abrir
                 return Result<Guid>.Falha(entrega.Errors.ToArray());
 
             await entregas.AdicionarAsync(entrega.Value, cancellationToken);
+            auditoria.Registrar("Entrega", entrega.Value.PublicId, AcaoAuditoria.Criou, null,
+                new { entrega.Value.AplicacaoId, Situacao = EnumKebab.Texto(entrega.Value.Situacao), Fluxos = fluxos.Count },
+                new DadosDoRegistro(id.Value, CategoriaAuditoria.Entrega, ObjetoCodigo: entrega.Value.PublicId.ToString()));
             return Result<Guid>.Sucesso(entrega.Value.PublicId);
         }
     }

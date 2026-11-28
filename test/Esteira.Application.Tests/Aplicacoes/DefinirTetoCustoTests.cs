@@ -67,7 +67,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("aplicacao.teto-invalido");
             _app.TetoCustoAgentesUsd.Should().BeNull();
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             await _uow.DidNotReceive().SaveChangesAsync();
         }
 
@@ -82,7 +82,8 @@ namespace Esteira.Application.Tests.Aplicacoes
             {
                 _auditoria.Registrar("Aplicacao", _app.PublicId, AcaoAuditoria.Alterou,
                     Arg.Is<object?>(o => o != null && o.ToString()!.Contains("TetoCustoAgentesUsd = 1")),
-                    Arg.Is<object?>(o => o != null && o.ToString()!.Contains("TetoCustoAgentesUsd = 3")));
+                    Arg.Is<object?>(o => o != null && o.ToString()!.Contains("TetoCustoAgentesUsd = 3")),
+                    Arg.Any<DadosDoRegistro>());
                 _uow.SaveChangesAsync();
             });
         }
@@ -97,7 +98,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("acesso.papel-insuficiente");
             _app.TetoCustoAgentesUsd.Should().BeNull();
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             await _uow.DidNotReceive().SaveChangesAsync();
         }
 

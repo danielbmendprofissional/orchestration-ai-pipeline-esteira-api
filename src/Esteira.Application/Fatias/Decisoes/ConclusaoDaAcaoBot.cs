@@ -32,7 +32,7 @@ namespace Esteira.Application.Fatias.Decisoes
             return await ConfirmarAsync(acao, ct);
         }
 
-        public async Task<ResultadoDaExecucao> ConfirmarAsync(AcaoBotEntity acao, CancellationToken ct = default)
+        public async Task<ResultadoDaExecucao> ConfirmarAsync(AcaoBotEntity acao, CancellationToken ct = default, OrigemAuditoria origem = OrigemAuditoria.Bot)
         {
             // Republica a mensagem dos dependentes ainda pedidos ANTES de salvar: o outbox do MassTransit grava no
             // mesmo SaveChanges do RegistrarProgressoDaAcao, então a retomada da Ação do front é atômica com a confirmação.
@@ -42,7 +42,7 @@ namespace Esteira.Application.Fatias.Decisoes
                     new AcaoBotPedida(dependente.PublicId, EnumKebab.Texto(dependente.Tipo), dependente.FatiaCodigo, dependente.ChaveIdempotencia),
                     ct);
 
-            var confirmada = await progresso.RegistrarAsync(acao.PublicId, EstadoAcaoBot.Confirmada, null, ct);
+            var confirmada = await progresso.RegistrarAsync(acao.PublicId, EstadoAcaoBot.Confirmada, null, ct, origem);
             if (!confirmada.IsSuccess)
             {
                 log.LogWarning("Ação {Acao}: não foi possível confirmar ({Codigo}).", acao.PublicId, confirmada.Errors[0].Code);
@@ -65,9 +65,9 @@ namespace Esteira.Application.Fatias.Decisoes
             return await FalharAsync(acao, codigo, ct);
         }
 
-        public async Task<ResultadoDaExecucao> FalharAsync(AcaoBotEntity acao, string codigo, CancellationToken ct = default)
+        public async Task<ResultadoDaExecucao> FalharAsync(AcaoBotEntity acao, string codigo, CancellationToken ct = default, OrigemAuditoria origem = OrigemAuditoria.Bot)
         {
-            var falha = await progresso.RegistrarAsync(acao.PublicId, EstadoAcaoBot.Falhou, codigo, ct);
+            var falha = await progresso.RegistrarAsync(acao.PublicId, EstadoAcaoBot.Falhou, codigo, ct, origem);
             if (!falha.IsSuccess)
                 log.LogWarning("Ação {Acao}: não foi possível registrar a falha ({Codigo}).", acao.PublicId, falha.Errors[0].Code);
 

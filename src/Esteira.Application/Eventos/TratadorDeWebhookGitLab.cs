@@ -1,3 +1,4 @@
+using Esteira.Domain.Aplicacoes;
 using System.Text.Json;
 using Esteira.Application.Common.Extensions;
 using Esteira.Application.Entregas;
@@ -188,9 +189,9 @@ namespace Esteira.Application.Eventos
             try
             {
                 if (verde)
-                    await conclusao.ConfirmarAsync(acao, ct);
+                    await conclusao.ConfirmarAsync(acao, ct, OrigemAuditoria.Pipeline);
                 else
-                    await conclusao.FalharAsync(acao, CodigoPipelineFalhou, ct);
+                    await conclusao.FalharAsync(acao, CodigoPipelineFalhou, ct, OrigemAuditoria.Pipeline);
             }
             catch (ConcorrenciaOtimistaException)
             {

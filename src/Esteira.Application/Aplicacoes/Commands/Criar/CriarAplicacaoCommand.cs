@@ -81,7 +81,7 @@ namespace Esteira.Application.Aplicacoes.Commands.Criar
                 aplicacao.GrupoGitLabCaminho,
                 aplicacao.Ativa,
                 Politicas = politicas.Select(AplicacaoErros.Dto).ToList()
-            });
+            }, new DadosDoRegistro(aplicacao.Id, CategoriaAuditoria.Cadastro));
 
             return Result<AplicacaoListaDto>.Sucesso(AplicacaoErros.Lista(aplicacao));
         }

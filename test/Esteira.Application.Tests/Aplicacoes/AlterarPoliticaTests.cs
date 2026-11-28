@@ -53,7 +53,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             var r = await Executar(ambiente, critica, alta, null, null, modo);
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("politica.abaixo-do-minimo");
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Critério 11a: endurecer é permitido (review bloqueando, Média com limite) e é auditado com antes/depois")]
@@ -63,7 +63,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.IsSuccess.Should().BeTrue();
             (r.Value.Ambiente, r.Value.Modo, r.Value.Media).Should().Be(("review", "bloqueia", 3));
-            _auditoria.Received(1).Registrar("PoliticaSeveridade", Arg.Any<Guid>(), AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(1).Registrar("PoliticaSeveridade", Arg.Any<Guid>(), AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
         }
 
         [Fact, DisplayName("Sem permissão devolve o erro da autorização e não altera a política")]

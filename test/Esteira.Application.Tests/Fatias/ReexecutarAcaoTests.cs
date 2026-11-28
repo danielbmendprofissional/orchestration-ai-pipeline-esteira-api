@@ -110,7 +110,7 @@ namespace Esteira.Application.Tests.Fatias
         private void NadaGravado()
         {
             _acoes.DidNotReceiveWithAnyArgs().AdicionarAsync(default!, default);
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             _publicador.DidNotReceiveWithAnyArgs().Publish(default(AcaoBotPedida)!, default);
             _uow.DidNotReceive().CommitAsync();
         }
@@ -144,7 +144,7 @@ namespace Esteira.Application.Tests.Fatias
 
             await Executar(api);
 
-            _auditoria.Received(2).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(2).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
             await _publicador.Received(1).Publish(
                 Arg.Is<AcaoBotPedida>(m => m.AcaoId == _adicionadas[0].PublicId && m.Tipo == "aprovar" && m.ChaveIdempotencia == "5:P2:aprovar:71:3:2"),
                 Arg.Any<CancellationToken>());

@@ -99,7 +99,7 @@ namespace Esteira.Application.Aplicacoes.Commands.CadastrarProjeto
                 Stack = EnumKebab.Texto(projeto.Stack),
                 projeto.Ativo,
                 Ambientes = Enum.GetValues<AmbienteDeploy>().Select(EnumKebab.Texto).ToList()
-            });
+            }, new DadosDoRegistro(projeto.AplicacaoId, CategoriaAuditoria.Cadastro));
 
             await uow.SaveChangesAsync();
             return Result<ProjetoResumoDto>.Sucesso(await projetos.MontarDtoAsync(projeto, cancellationToken));

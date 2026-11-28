@@ -51,7 +51,8 @@ namespace Esteira.Application.Tests.Aplicacoes
             (_app.WorkspaceGitLabId, _app.WorkspaceGitLabCaminho).Should().Be((900L, "valuto/valuto-workspace"));
             _auditoria.Received(1).Registrar("Aplicacao", _app.PublicId, AcaoAuditoria.Alterou,
                 Arg.Is<object?>(o => o != null && o.ToString()!.Contains("WorkspaceGitLabId = ") && o.ToString()!.Contains("WorkspaceGitLabCaminho = ")),
-                Arg.Is<object?>(o => o != null && o.ToString()!.Contains("900") && o.ToString()!.Contains("valuto/valuto-workspace")));
+                Arg.Is<object?>(o => o != null && o.ToString()!.Contains("900") && o.ToString()!.Contains("valuto/valuto-workspace")),
+                Arg.Any<DadosDoRegistro>());
             await _uow.Received(1).SaveChangesAsync();
         }
 
@@ -64,7 +65,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.IsSuccess.Should().BeTrue();
             (_app.WorkspaceGitLabId, _app.WorkspaceGitLabCaminho).Should().Be(((long?)null, (string?)null));
-            _auditoria.Received(1).Registrar("Aplicacao", _app.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(1).Registrar("Aplicacao", _app.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
             await _gitlab.DidNotReceiveWithAnyArgs().ObterProjetoAsync(default!, default);
         }
 
@@ -77,7 +78,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("aplicacao.workspace-fora-do-grupo");
             _app.WorkspaceGitLabId.Should().BeNull();
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             await _uow.DidNotReceive().SaveChangesAsync();
         }
 
@@ -90,7 +91,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("aplicacao.workspace-e-projeto");
             _app.WorkspaceGitLabId.Should().BeNull();
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Projeto inexistente no GitLab devolve erro Validation estável (aplicacao.workspace-nao-encontrado)")]

@@ -48,7 +48,7 @@ namespace Esteira.Application.Aplicacoes.Commands.DefinirTetoCusto
             if (!definido.IsSuccess)
                 return Result<TetoCustoDto>.Falha(definido.Errors.ToArray());
 
-            auditoria.Registrar("Aplicacao", aplicacao.PublicId, AcaoAuditoria.Alterou, antes, Estado(aplicacao));
+            auditoria.Registrar("Aplicacao", aplicacao.PublicId, AcaoAuditoria.Alterou, antes, Estado(aplicacao), new DadosDoRegistro(aplicacao.Id, CategoriaAuditoria.Cadastro));
 
             try
             {

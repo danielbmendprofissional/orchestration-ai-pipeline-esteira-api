@@ -86,7 +86,7 @@ namespace Esteira.Application.Tests.Fatias
         private void NadaGravado()
         {
             _acoes.DidNotReceiveWithAnyArgs().AdicionarAsync(default!, default);
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             _publicador.DidNotReceiveWithAnyArgs().Publish(default(AcaoBotPedida)!, default);
             _uow.DidNotReceive().SaveChangesAsync();
         }
@@ -101,11 +101,21 @@ namespace Esteira.Application.Tests.Fatias
             _adicionadas.Should().OnlyContain(a => a.Tipo == TipoAcaoBot.Aprovar && a.Estado == EstadoAcaoBot.Pedida && a.PedidaPorPessoaId == 9 && a.Comentario == null);
             _adicionadas[0].ChaveIdempotencia.Should().Be("5:P2:aprovar:71:3:1");
             r.Value.Acoes.Select(a => a.Repositorio).Should().Equal("api", "api", "frontend");
-            _auditoria.Received(3).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(3).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
             await _publicador.Received(3).Publish(Arg.Any<AcaoBotPedida>(), Arg.Any<CancellationToken>());
             await _publicador.Received(1).Publish(
                 Arg.Is<AcaoBotPedida>(m => m.AcaoId == _adicionadas[0].PublicId && m.Tipo == "aprovar" && m.ChaveIdempotencia == _adicionadas[0].ChaveIdempotencia),
                 Arg.Any<CancellationToken>());
+        }
+
+        [Fact, Trait("Fatia", "X1"), DisplayName("X1 critérios 1 e 10: cada Ação pedida grava AcaoBot/Criou, origem tela, categoria fatias, Aplicação e código da Fatia")]
+        public async Task Audita_com_origem_tela()
+        {
+            await Executar();
+
+            _auditoria.Received(3).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Any<object?>(), Arg.Any<object?>(),
+                Arg.Is<DadosDoRegistro>(d => d.AplicacaoId == AppId && d.Categoria == CategoriaAuditoria.Fatias
+                    && d.Origem == OrigemAuditoria.Tela && d.ObjetoCodigo == "P2"));
         }
 
         [Fact, DisplayName("2: tudo na mesma transação (abre, grava e confirma)")]

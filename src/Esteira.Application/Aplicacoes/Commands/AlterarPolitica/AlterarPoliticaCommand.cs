@@ -57,7 +57,7 @@ namespace Esteira.Application.Aplicacoes.Commands.AlterarPolitica
                 return Result<PoliticaDto>.Falha(alterada.Errors.ToArray());
 
             var depois = AplicacaoErros.Dto(politica);
-            auditoria.Registrar("PoliticaSeveridade", politica.PublicId, AcaoAuditoria.Alterou, antes, depois);
+            auditoria.Registrar("PoliticaSeveridade", politica.PublicId, AcaoAuditoria.Alterou, antes, depois, new DadosDoRegistro(politica.AplicacaoId, CategoriaAuditoria.Politica));
 
             return Result<PoliticaDto>.Sucesso(depois);
         }

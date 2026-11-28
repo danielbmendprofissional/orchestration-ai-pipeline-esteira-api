@@ -53,7 +53,7 @@ namespace Esteira.Application.Aplicacoes.Commands.Alterar
             if (!alterada.IsSuccess)
                 return Result<AplicacaoListaDto>.Falha(alterada.Errors.ToArray());
 
-            auditoria.Registrar("Aplicacao", aplicacao.PublicId, AcaoAuditoria.Alterou, antes, Estado(aplicacao));
+            auditoria.Registrar("Aplicacao", aplicacao.PublicId, AcaoAuditoria.Alterou, antes, Estado(aplicacao), new DadosDoRegistro(aplicacao.Id, CategoriaAuditoria.Cadastro));
 
             try
             {
