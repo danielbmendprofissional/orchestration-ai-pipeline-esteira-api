@@ -105,7 +105,7 @@ namespace Esteira.Application.Tests.Fatias
             _adicionadas[0].ChaveIdempotencia.Should().Be("5:P2:reprovar:71:3:1");
             r.Value.Acoes.Select(a => a.Repositorio).Should().Equal("api", "api", "frontend");
             r.Value.Acoes.Should().OnlyContain(a => a.Tipo == "reprovar" && a.Estado == "pedida");
-            _auditoria.Received(3).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
+            _auditoria.Received(3).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Is<DadosDoRegistro>(d => d.Motivo == Comentario && d.Categoria == CategoriaAuditoria.Fatias));
             await _publicador.Received(3).Publish(Arg.Any<AcaoBotPedida>(), Arg.Any<CancellationToken>());
             await _publicador.Received(1).Publish(
                 Arg.Is<AcaoBotPedida>(m => m.AcaoId == _adicionadas[0].PublicId && m.Tipo == "reprovar" && m.ChaveIdempotencia == _adicionadas[0].ChaveIdempotencia),
