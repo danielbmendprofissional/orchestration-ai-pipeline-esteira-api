@@ -96,6 +96,12 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                     b.Property<long?>("WorkspaceGitLabId")
                         .HasColumnType("bigint");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("GrupoGitLabId")

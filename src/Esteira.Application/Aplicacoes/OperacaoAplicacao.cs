@@ -12,6 +12,8 @@ namespace Esteira.Application.Aplicacoes
         GerenciarPapeis,
         // Só MOR: nome, sigla, ativa.
         EditarAplicacao,
+        // Só MOR (X3): teto de custo dos agentes do CI.
+        EditarTetoCusto,
         // Membro, Aprovador técnico ou MOR (P2): pedir o review de uma Fatia Em revisão.
         AbrirReview,
         // Aprovador técnico ou MOR (P2): aprovar ou reprovar uma Fatia Em revisão.

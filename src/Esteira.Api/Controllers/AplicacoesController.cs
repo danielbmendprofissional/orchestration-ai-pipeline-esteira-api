@@ -5,6 +5,7 @@ using Esteira.Application.Aplicacoes;
 using Esteira.Application.Aplicacoes.Commands.Alterar;
 using Esteira.Application.Aplicacoes.Commands.AlterarPolitica;
 using Esteira.Application.Aplicacoes.Commands.CadastrarProjeto;
+using Esteira.Application.Aplicacoes.Commands.DefinirTetoCusto;
 using Esteira.Application.Aplicacoes.Commands.DefinirWorkspace;
 using Esteira.Application.Aplicacoes.Commands.Criar;
 using Esteira.Application.Aplicacoes.Commands.Papeis;
@@ -33,6 +34,8 @@ namespace Esteira.Api.Controllers
         public sealed record CadastrarProjetoRequest(long? ProjetoGitLabId, string? Stack);
 
         public sealed record DefinirWorkspaceRequest(long? ProjetoGitLabId);
+
+        public sealed record DefinirTetoCustoRequest(decimal? TetoCustoUsd);
 
         public sealed record VincularPapelRequest(string? Usuario, string? Papel);
 
@@ -99,6 +102,19 @@ namespace Esteira.Api.Controllers
         [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
         public async Task<Result> DefinirWorkspace(Guid id, [FromBody] DefinirWorkspaceRequest corpo, CancellationToken cancellationToken)
             => await mediator.Send(new DefinirWorkspaceCommand(id, corpo.ProjetoGitLabId), cancellationToken);
+
+        // X3.2: teto de custo dos agentes do CI (só MOR). Flag própria Features:X3 (além da A1 do controller); `{ tetoCustoUsd: null }` ou corpo vazio restaura o padrão.
+        [HttpPut("{id:guid}/teto-custo")]
+        [FeatureFlag("X3")]
+        [ProducesResponseType<TetoCustoDto>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status409Conflict)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<Result<TetoCustoDto>> DefinirTetoCusto(Guid id, [FromBody] DefinirTetoCustoRequest corpo, CancellationToken cancellationToken)
+            => await mediator.Send(new DefinirTetoCustoCommand(id, corpo.TetoCustoUsd), cancellationToken);
 
         [HttpGet("{id:guid}/gitlab/projetos")]
         [ProducesResponseType<IReadOnlyList<ProjetoGitLabItemDto>>(StatusCodes.Status200OK)]

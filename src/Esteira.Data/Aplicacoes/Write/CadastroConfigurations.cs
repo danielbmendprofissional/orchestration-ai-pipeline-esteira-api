@@ -35,6 +35,8 @@ namespace Esteira.Data.Aplicacoes.Write
             b.HasIndex(x => x.GrupoGitLabId).IsUnique();
             // P1: workspace opcional; os dois campos juntos ou nenhum (também no banco).
             b.Property(x => x.TetoCustoAgentesUsd).HasColumnType("numeric(6,2)");
+            // X3: concorrência otimista (ADR-0009) pela coluna de sistema xmin do PostgreSQL, sem coluna própria nem migration.
+            b.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
             b.ToTable(t =>
             {
                 t.HasCheckConstraint("CK_Aplicacao_WorkspaceCoerente",
