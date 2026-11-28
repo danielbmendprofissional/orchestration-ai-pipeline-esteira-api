@@ -23,6 +23,185 @@ namespace Esteira.Data.Common.Persistence.Migracoes
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Esteira.Domain.Analises.AchadoEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AnaliseId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Arquivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ChaveDoTipo")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int?>("Linha")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RegraId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Severidade")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnaliseId");
+
+                    b.HasIndex("ChaveDoTipo");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.ToTable("Achado", "esteira");
+                });
+
+            modelBuilder.Entity("Esteira.Domain.Analises.AnaliseEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Ambiente")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("CustoUsd")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)");
+
+                    b.Property<string>("DestinoNome")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Escopo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("FluxoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Fonte")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("PipelineGitLabId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RecebidaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Veredito")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("FluxoId", "Ambiente", "Escopo", "Fonte", "DestinoNome", "PipelineGitLabId")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("FluxoId", "Ambiente", "Escopo", "Fonte", "DestinoNome", "PipelineGitLabId"), false);
+
+                    b.ToTable("Analise", "esteira", t =>
+                        {
+                            t.HasCheckConstraint("CK_Analise_CustoNaoNegativo", "\"CustoUsd\" IS NULL OR \"CustoUsd\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Esteira.Domain.Analises.DecisaoDoGateEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Alta")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Ambiente")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Baixa")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Critica")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("DecididaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Decisao")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("FluxoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Media")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Momento")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Motivo")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("PipelineGitLabId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("FluxoId", "Ambiente", "Momento", "PipelineGitLabId")
+                        .IsUnique();
+
+                    b.ToTable("DecisaoDoGate", "esteira");
+                });
+
             modelBuilder.Entity("Esteira.Domain.Aplicacoes.AmbienteProjetoEntity", b =>
                 {
                     b.Property<long>("Id")
@@ -910,6 +1089,33 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                     b.ToTable("OutboxState", "esteira");
                 });
 
+            modelBuilder.Entity("Esteira.Domain.Analises.AchadoEntity", b =>
+                {
+                    b.HasOne("Esteira.Domain.Analises.AnaliseEntity", null)
+                        .WithMany("Achados")
+                        .HasForeignKey("AnaliseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Esteira.Domain.Analises.AnaliseEntity", b =>
+                {
+                    b.HasOne("Esteira.Domain.Entregas.FluxoEntity", null)
+                        .WithMany()
+                        .HasForeignKey("FluxoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Esteira.Domain.Analises.DecisaoDoGateEntity", b =>
+                {
+                    b.HasOne("Esteira.Domain.Entregas.FluxoEntity", null)
+                        .WithMany()
+                        .HasForeignKey("FluxoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Esteira.Domain.Aplicacoes.AmbienteProjetoEntity", b =>
                 {
                     b.HasOne("Esteira.Domain.Aplicacoes.ProjetoEntity", null)
@@ -1083,6 +1289,11 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .WithMany()
                         .HasForeignKey("InboxMessageId", "InboxConsumerId")
                         .HasPrincipalKey("MessageId", "ConsumerId");
+                });
+
+            modelBuilder.Entity("Esteira.Domain.Analises.AnaliseEntity", b =>
+                {
+                    b.Navigation("Achados");
                 });
 
             modelBuilder.Entity("Esteira.Domain.Entregas.EntregaEntity", b =>

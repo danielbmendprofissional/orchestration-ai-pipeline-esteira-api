@@ -12,7 +12,7 @@ namespace Esteira.Domain.Entregas
         {
             var lista = etapas.ToList();
 
-            if (lista.Any(e => e.Estado == EstadoEtapa.Falhou))
+            if (lista.Any(e => e.Estado is EstadoEtapa.Falhou or EstadoEtapa.Bloqueada))
                 return new EstadoDaEntrega(EstadoEntrega.BloqueadaOuFalha, null);
 
             // qa e hml esperam o aprovador técnico.

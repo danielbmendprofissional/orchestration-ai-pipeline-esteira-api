@@ -30,6 +30,11 @@ namespace Esteira.Integration.Tests.Pipeline
             ctx.AddRange(c.Aplicacao, c.Pessoa);
             await ctx.SaveChangesAsync(ct);
 
+            // O cadastro real cria as Politicas junto com a Aplicacao (A1); o gate (E2) le a do Ambiente.
+            foreach (var ambientePolitica in Enum.GetValues<AmbientePolitica>())
+                ctx.Add(PoliticaSeveridadeEntity.Padrao(c.Aplicacao.Id, ambientePolitica));
+            await ctx.SaveChangesAsync(ct);
+
             c.Projeto = ProjetoEntity.Criar(c.Aplicacao.Id, ContextoDoCadastro.IdUnico(), $"grupo/proj-{Guid.NewGuid():N}", "proj", Stack.Dotnet);
             ctx.Add(c.Projeto);
             await ctx.SaveChangesAsync(ct);
