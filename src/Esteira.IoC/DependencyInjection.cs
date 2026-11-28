@@ -45,8 +45,11 @@ namespace Esteira.IoC
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IAbrirPipeline, Esteira.Application.Entregas.Pipeline.AbrirPipelineHandler>();
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IProjetoPorCaminhoQuery, Esteira.Data.Entregas.ProjetoPorCaminhoQuery>();
             services.AddScoped<Esteira.Application.Entregas.Pipeline.IDestinosDaPipelineQuery, Esteira.Data.Entregas.DestinosDaPipelineQuery>();
+            services.AddScoped<Esteira.Application.Entregas.Pipeline.ITetoCustoDaAplicacaoQuery, Esteira.Data.Entregas.TetoCustoDaAplicacaoQuery>();
             // E1b: `Features:E1b`, lida da configuração a cada uso.
             services.AddScoped<Esteira.Application.Entregas.IOpcoesDaEntrega, OpcoesDaEntrega>();
+            // X3: `Pipeline:TetoCustoPadraoUsd` (X3.3 consolida o uso no esteira-abrir e no detalhe).
+            services.AddScoped<Esteira.Application.Aplicacoes.IOpcoesDosAgentes, OpcoesDosAgentes>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IEntregaQuery, Esteira.Data.Entregas.EntregaQuery>();
             services.AddScoped<Esteira.Application.Entregas.Queries.Obter.IUrlDoGitLab, UrlDoGitLab>();
             services.AddScoped<IPapelRepositorio, PapelRepositorio>();

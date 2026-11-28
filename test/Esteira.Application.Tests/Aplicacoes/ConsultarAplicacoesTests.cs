@@ -45,7 +45,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             _acesso.ResolverIdAsync(id, Arg.Any<CancellationToken>()).Returns(9L);
             _autorizacao.AutorizarAsync(9, OperacaoAplicacao.Ver, Arg.Any<CancellationToken>()).Returns(Result.Falha(AutorizacaoAplicacao.NaoEncontrada));
 
-            var r = await new ObterAplicacaoHandler(_acesso, _autorizacao, _query).Handle(new ObterAplicacaoQuery(id), Ct);
+            var r = await new ObterAplicacaoHandler(_acesso, _autorizacao, _query, Substitute.For<IOpcoesDosAgentes>()).Handle(new ObterAplicacaoQuery(id), Ct);
 
             r.Errors.Should().ContainSingle().Which.Should().Be(AutorizacaoAplicacao.NaoEncontrada);
             await _query.DidNotReceiveWithAnyArgs().ObterDetalheAsync(default, default);
@@ -60,7 +60,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             _autorizacao.AutorizarAsync(9, OperacaoAplicacao.Ver, Arg.Any<CancellationToken>()).Returns(Result.Sucesso());
             _query.ObterDetalheAsync(9, Arg.Any<CancellationToken>()).Returns(detalhe);
 
-            var r = await new ObterAplicacaoHandler(_acesso, _autorizacao, _query).Handle(new ObterAplicacaoQuery(id), Ct);
+            var r = await new ObterAplicacaoHandler(_acesso, _autorizacao, _query, Substitute.For<IOpcoesDosAgentes>()).Handle(new ObterAplicacaoQuery(id), Ct);
 
             r.Value.Should().BeSameAs(detalhe);
         }

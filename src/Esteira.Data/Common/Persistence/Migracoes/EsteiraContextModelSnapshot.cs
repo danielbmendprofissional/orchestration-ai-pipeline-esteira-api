@@ -87,11 +87,20 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("TetoCustoAgentesUsd")
+                        .HasColumnType("numeric(6,2)");
+
                     b.Property<string>("WorkspaceGitLabCaminho")
                         .HasColumnType("text");
 
                     b.Property<long?>("WorkspaceGitLabId")
                         .HasColumnType("bigint");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -106,6 +115,8 @@ namespace Esteira.Data.Common.Persistence.Migracoes
 
                     b.ToTable("Aplicacao", "esteira", t =>
                         {
+                            t.HasCheckConstraint("CK_Aplicacao_TetoCustoAgentesFaixa", "\"TetoCustoAgentesUsd\" IS NULL OR (\"TetoCustoAgentesUsd\" >= 0.10 AND \"TetoCustoAgentesUsd\" <= 50.00)");
+
                             t.HasCheckConstraint("CK_Aplicacao_WorkspaceCoerente", "(\"WorkspaceGitLabId\" IS NULL AND \"WorkspaceGitLabCaminho\" IS NULL) OR (\"WorkspaceGitLabId\" IS NOT NULL AND \"WorkspaceGitLabCaminho\" IS NOT NULL)");
                         });
                 });

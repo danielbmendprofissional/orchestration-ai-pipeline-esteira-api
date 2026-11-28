@@ -38,7 +38,8 @@ namespace Esteira.Application.Aplicacoes
                 PodeEditar: acesso.Pode(OperacaoAplicacao.EditarAplicacao),
                 PodeEditarCadastro: acesso.Pode(OperacaoAplicacao.EditarCadastro),
                 PodeEditarPolitica: acesso.Pode(OperacaoAplicacao.EditarPolitica),
-                PodeGerenciarPapeis: acesso.Pode(OperacaoAplicacao.GerenciarPapeis)));
+                PodeGerenciarPapeis: acesso.Pode(OperacaoAplicacao.GerenciarPapeis),
+                PodeEditarTetoCusto: acesso.Pode(OperacaoAplicacao.EditarTetoCusto)));
         }
 
         public bool PodeCriar() => usuario.EhMor;

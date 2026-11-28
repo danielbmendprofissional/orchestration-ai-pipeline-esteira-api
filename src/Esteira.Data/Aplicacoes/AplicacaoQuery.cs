@@ -77,6 +77,7 @@ namespace Esteira.Data.Aplicacoes
                 Sigla = app.Sigla,
                 Grupo = app.GrupoGitLabCaminho,
                 Ativa = app.Ativa,
+                TetoCusto = new Esteira.Application.Aplicacoes.Commands.DefinirTetoCusto.TetoCustoDto { TetoCustoUsd = app.TetoCustoAgentesUsd },
                 Workspace = app.WorkspaceGitLabId is { } wsId && app.WorkspaceGitLabCaminho is { } wsCaminho
                     ? new WorkspaceDto { ProjetoGitLabId = wsId, Caminho = wsCaminho }
                     : null,

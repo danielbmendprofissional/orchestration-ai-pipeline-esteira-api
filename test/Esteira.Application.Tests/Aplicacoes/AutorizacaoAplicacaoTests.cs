@@ -107,7 +107,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             var resultado = await Servico(false, PapelAplicacao.Analista).PermissoesAsync(AplicacaoId);
 
             resultado.IsSuccess.Should().BeTrue();
-            resultado.Value.Should().Be(new PermissoesAplicacao(PodeEditar: false, PodeEditarCadastro: true, PodeEditarPolitica: false, PodeGerenciarPapeis: false));
+            resultado.Value.Should().Be(new PermissoesAplicacao(PodeEditar: false, PodeEditarCadastro: true, PodeEditarPolitica: false, PodeGerenciarPapeis: false, PodeEditarTetoCusto: false));
         }
 
         [Fact, DisplayName("Permissões do aprovador técnico: só editar política")]
@@ -115,7 +115,7 @@ namespace Esteira.Application.Tests.Aplicacoes
         {
             var resultado = await Servico(false, PapelAplicacao.AprovadorTecnico).PermissoesAsync(AplicacaoId);
 
-            resultado.Value.Should().Be(new PermissoesAplicacao(false, false, true, false));
+            resultado.Value.Should().Be(new PermissoesAplicacao(false, false, true, false, false));
         }
 
         [Fact, DisplayName("Permissões do MOR: tudo")]
@@ -123,7 +123,7 @@ namespace Esteira.Application.Tests.Aplicacoes
         {
             var resultado = await Servico(true).PermissoesAsync(AplicacaoId);
 
-            resultado.Value.Should().Be(new PermissoesAplicacao(true, true, true, true));
+            resultado.Value.Should().Be(new PermissoesAplicacao(true, true, true, true, true));
         }
 
         [Fact, DisplayName("Permissões sem papel e sem MOR: 404 aplicacao.nao-encontrada")]

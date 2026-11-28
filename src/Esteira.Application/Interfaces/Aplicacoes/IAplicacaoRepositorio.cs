@@ -12,6 +12,10 @@ namespace Esteira.Application.Interfaces.Aplicacoes
 
         Task<bool> GrupoVinculadoAsync(long grupoGitLabId, CancellationToken cancellationToken = default);
 
+        // Depois de perder uma corrida de gravação (X3): descarta o que está pendente no contexto (inclusive a auditoria)
+        // e lê do banco o teto que a outra requisição gravou.
+        Task<decimal?> ObterTetoCustoGravadoAsync(long id, CancellationToken cancellationToken = default);
+
         Task AdicionarAsync(AplicacaoEntity aplicacao, CancellationToken cancellationToken = default);
 
         Task AdicionarPoliticaAsync(PoliticaSeveridadeEntity politica, CancellationToken cancellationToken = default);

@@ -34,8 +34,17 @@ namespace Esteira.Data.Aplicacoes.Write
             b.HasIndex(x => x.Sigla).IsUnique();
             b.HasIndex(x => x.GrupoGitLabId).IsUnique();
             // P1: workspace opcional; os dois campos juntos ou nenhum (também no banco).
-            b.ToTable(t => t.HasCheckConstraint("CK_Aplicacao_WorkspaceCoerente",
-                "(\"WorkspaceGitLabId\" IS NULL AND \"WorkspaceGitLabCaminho\" IS NULL) OR (\"WorkspaceGitLabId\" IS NOT NULL AND \"WorkspaceGitLabCaminho\" IS NOT NULL)"));
+            b.Property(x => x.TetoCustoAgentesUsd).HasColumnType("numeric(6,2)");
+            // X3: concorrência otimista (ADR-0009) pela coluna de sistema xmin do PostgreSQL, sem coluna própria nem migration.
+            b.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+            b.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Aplicacao_WorkspaceCoerente",
+                    "(\"WorkspaceGitLabId\" IS NULL AND \"WorkspaceGitLabCaminho\" IS NULL) OR (\"WorkspaceGitLabId\" IS NOT NULL AND \"WorkspaceGitLabCaminho\" IS NOT NULL)");
+                // X3: teto de custo dos agentes, nulo (padrão da Esteira) ou entre 0.10 e 50.00.
+                t.HasCheckConstraint("CK_Aplicacao_TetoCustoAgentesFaixa",
+                    "\"TetoCustoAgentesUsd\" IS NULL OR (\"TetoCustoAgentesUsd\" >= 0.10 AND \"TetoCustoAgentesUsd\" <= 50.00)");
+            });
         }
     }
 

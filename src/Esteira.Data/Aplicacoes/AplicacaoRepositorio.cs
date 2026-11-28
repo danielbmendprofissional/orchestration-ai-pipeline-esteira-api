@@ -16,6 +16,14 @@ namespace Esteira.Data.Aplicacoes
         public Task<bool> GrupoVinculadoAsync(long grupoGitLabId, CancellationToken cancellationToken = default)
             => contexto.Set<AplicacaoEntity>().AnyAsync(a => a.GrupoGitLabId == grupoGitLabId, cancellationToken);
 
+        // Perdeu a corrida de gravação: o estado pendente (Aplicação alterada e auditoria) é do perdedor e não vale mais.
+        public async Task<decimal?> ObterTetoCustoGravadoAsync(long id, CancellationToken cancellationToken = default)
+        {
+            contexto.ChangeTracker.Clear();
+            return await contexto.Set<AplicacaoEntity>().AsNoTracking()
+                .Where(a => a.Id == id).Select(a => a.TetoCustoAgentesUsd).SingleAsync(cancellationToken);
+        }
+
         public async Task AdicionarAsync(AplicacaoEntity aplicacao, CancellationToken cancellationToken = default)
             => await contexto.Set<AplicacaoEntity>().AddAsync(aplicacao, cancellationToken);
 
