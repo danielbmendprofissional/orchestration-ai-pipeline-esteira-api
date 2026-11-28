@@ -372,6 +372,18 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                     b.Property<string>("Antes")
                         .HasColumnType("jsonb");
 
+                    b.Property<long?>("AplicacaoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Autoaprovacao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Categoria")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Depois")
                         .HasColumnType("jsonb");
 
@@ -381,6 +393,21 @@ namespace Esteira.Data.Common.Persistence.Migracoes
 
                     b.Property<Guid>("EntidadePublicId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Motivo")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ObjetoCodigo")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ObjetoNome")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Origem")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("tela");
 
                     b.Property<Guid>("PublicId")
                         .HasColumnType("uuid");
@@ -392,12 +419,23 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("UsuarioNome")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Verbo")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ObjetoCodigo");
 
                     b.HasIndex("PublicId")
                         .IsUnique();
 
                     b.HasIndex("Quando");
+
+                    b.HasIndex("AplicacaoId", "Quando")
+                        .IsDescending(false, true);
 
                     b.HasIndex("Entidade", "EntidadePublicId");
 
@@ -968,6 +1006,14 @@ namespace Esteira.Data.Common.Persistence.Migracoes
                         .HasForeignKey("AplicacaoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Esteira.Domain.Aplicacoes.RegistroAuditoriaEntity", b =>
+                {
+                    b.HasOne("Esteira.Domain.Aplicacoes.AplicacaoEntity", null)
+                        .WithMany()
+                        .HasForeignKey("AplicacaoId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Esteira.Domain.Entregas.EntregaEntity", b =>
