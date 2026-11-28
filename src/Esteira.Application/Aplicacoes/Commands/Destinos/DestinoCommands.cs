@@ -91,7 +91,7 @@ namespace Esteira.Application.Aplicacoes.Commands.Destinos
                 return ProjetoErros.DestinoNomeDuplicado;
 
             await projetos.AdicionarDestinoAsync(destino, cancellationToken);
-            auditoria.Registrar("Destino", destino.PublicId, AcaoAuditoria.Criou, null, DestinoRegras.Estado(projeto, destino));
+            auditoria.Registrar("Destino", destino.PublicId, AcaoAuditoria.Criou, null, DestinoRegras.Estado(projeto, destino), new DadosDoRegistro(projeto.AplicacaoId, CategoriaAuditoria.Cadastro));
 
             try
             {
@@ -131,7 +131,7 @@ namespace Esteira.Application.Aplicacoes.Commands.Destinos
             if (!alterado.IsSuccess)
                 return Result<DestinoDto>.Falha(alterado.Errors.ToArray());
 
-            auditoria.Registrar("Destino", destino.PublicId, AcaoAuditoria.Alterou, antes, DestinoRegras.Estado(projeto, destino));
+            auditoria.Registrar("Destino", destino.PublicId, AcaoAuditoria.Alterou, antes, DestinoRegras.Estado(projeto, destino), new DadosDoRegistro(projeto.AplicacaoId, CategoriaAuditoria.Cadastro));
 
             try
             {
@@ -162,7 +162,7 @@ namespace Esteira.Application.Aplicacoes.Commands.Destinos
             if (destino is null)
                 return Result.Falha(ProjetoErros.DestinoNaoEncontrado);
 
-            auditoria.Registrar("Destino", destino.PublicId, AcaoAuditoria.Removeu, DestinoRegras.Estado(projeto, destino), null);
+            auditoria.Registrar("Destino", destino.PublicId, AcaoAuditoria.Removeu, DestinoRegras.Estado(projeto, destino), null, new DadosDoRegistro(projeto.AplicacaoId, CategoriaAuditoria.Cadastro));
             projetos.RemoverDestino(destino);
             return Result.Sucesso();
         }

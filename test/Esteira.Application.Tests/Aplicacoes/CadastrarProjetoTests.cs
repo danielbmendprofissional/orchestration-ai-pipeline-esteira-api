@@ -1,3 +1,4 @@
+using Esteira.Application.Interfaces.Auditoria;
 using System.ComponentModel;
 using AwesomeAssertions;
 using Esteira.Application.Aplicacoes;
@@ -53,7 +54,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             r.Value.Id.Should().Be(criado.PublicId);
             ambientes.Select(a => a.Ambiente).Should().BeEquivalentTo([AmbienteDeploy.Qa, AmbienteDeploy.Hml, AmbienteDeploy.Producao]);
             ambientes.Should().OnlyContain(a => a.Habilitado && a.ProjetoId == 77);
-            Auditoria.Received(1).Registrar("Projeto", criado.PublicId, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            Auditoria.Received(1).Registrar("Projeto", criado.PublicId, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
         }
 
         [Fact, DisplayName("Critério 6: projeto que não é do grupo da Aplicação é recusado (projeto.fora-do-grupo)")]
@@ -63,7 +64,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("projeto.fora-do-grupo");
             await Projetos.DidNotReceiveWithAnyArgs().AdicionarAsync(default!, default);
-            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Critério 7: projeto já cadastrado em qualquer Aplicação é recusado (projeto.duplicado)")]

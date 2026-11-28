@@ -89,7 +89,7 @@ namespace Esteira.Application.Tests.Fatias
         private void NadaGravado()
         {
             _acoes.DidNotReceiveWithAnyArgs().AdicionarAsync(default!, default);
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
             _publicador.DidNotReceiveWithAnyArgs().Publish(default(AcaoBotPedida)!, default);
             _uow.DidNotReceive().SaveChangesAsync();
         }
@@ -105,7 +105,7 @@ namespace Esteira.Application.Tests.Fatias
             _adicionadas[0].ChaveIdempotencia.Should().Be("5:P2:reprovar:71:3:1");
             r.Value.Acoes.Select(a => a.Repositorio).Should().Equal("api", "api", "frontend");
             r.Value.Acoes.Should().OnlyContain(a => a.Tipo == "reprovar" && a.Estado == "pedida");
-            _auditoria.Received(3).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(3).Registrar("AcaoBot", Arg.Any<Guid>(), AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Is<DadosDoRegistro>(d => d.Motivo == Comentario && d.Categoria == CategoriaAuditoria.Fatias));
             await _publicador.Received(3).Publish(Arg.Any<AcaoBotPedida>(), Arg.Any<CancellationToken>());
             await _publicador.Received(1).Publish(
                 Arg.Is<AcaoBotPedida>(m => m.AcaoId == _adicionadas[0].PublicId && m.Tipo == "reprovar" && m.ChaveIdempotencia == _adicionadas[0].ChaveIdempotencia),
@@ -116,7 +116,7 @@ namespace Esteira.Application.Tests.Fatias
         public async Task Comentario_fora_da_auditoria_e_do_outbox()
         {
             var depois = new List<string>();
-            _auditoria.When(a => a.Registrar(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<AcaoAuditoria>(), Arg.Any<object?>(), Arg.Any<object?>()))
+            _auditoria.When(a => a.Registrar(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<AcaoAuditoria>(), Arg.Any<object?>(), Arg.Any<object?>(), Arg.Any<DadosDoRegistro>()))
                 .Do(c => depois.Add(JsonSerializer.Serialize(c.ArgAt<object?>(4))));
             var mensagens = new List<string>();
             _publicador.When(p => p.Publish(Arg.Any<AcaoBotPedida>(), Arg.Any<CancellationToken>()))

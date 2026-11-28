@@ -165,6 +165,13 @@ namespace Esteira.Data.Aplicacoes.Write
             // Consulta da trilha (X1): por entidade e por quando.
             b.HasIndex(x => new { x.Entidade, x.EntidadePublicId });
             b.HasIndex(x => x.Quando);
+            // X1: Aplicação dona do objeto (nulo = só o MOR vê), origem e categoria como texto kebab.
+            b.Property(x => x.Origem).HasConversion(new EnumKebabConverter<OrigemAuditoria>()).HasDefaultValue(OrigemAuditoria.Tela);
+            b.Property(x => x.Categoria).HasConversion(new EnumKebabConverter<CategoriaAuditoria>());
+            b.Property(x => x.Autoaprovacao).HasDefaultValue(false);
+            b.HasOne<AplicacaoEntity>().WithMany().HasForeignKey(x => x.AplicacaoId).OnDelete(DeleteBehavior.Restrict);
+            b.HasIndex(x => new { x.AplicacaoId, x.Quando }).IsDescending(false, true);
+            b.HasIndex(x => x.ObjetoCodigo);
         }
     }
 }

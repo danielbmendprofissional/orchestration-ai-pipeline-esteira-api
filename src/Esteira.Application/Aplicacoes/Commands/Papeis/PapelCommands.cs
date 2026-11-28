@@ -58,7 +58,7 @@ namespace Esteira.Application.Aplicacoes.Commands.Papeis
 
             var entidade = PapelAplicacaoEntity.Criar(id.Value, pessoa.Sub, papel);
             await papeis.AdicionarAsync(entidade, cancellationToken);
-            auditoria.Registrar("PapelAplicacao", entidade.PublicId, AcaoAuditoria.Criou, null, PapelErros.Estado(entidade));
+            auditoria.Registrar("PapelAplicacao", entidade.PublicId, AcaoAuditoria.Criou, null, PapelErros.Estado(entidade), new DadosDoRegistro(id.Value, CategoriaAuditoria.Papeis));
 
             try
             {
@@ -100,7 +100,7 @@ namespace Esteira.Application.Aplicacoes.Commands.Papeis
             if (papel is null)
                 return Result.Falha(PapelErros.NaoEncontrado);
 
-            auditoria.Registrar("PapelAplicacao", papel.PublicId, AcaoAuditoria.Removeu, PapelErros.Estado(papel), null);
+            auditoria.Registrar("PapelAplicacao", papel.PublicId, AcaoAuditoria.Removeu, PapelErros.Estado(papel), null, new DadosDoRegistro(id.Value, CategoriaAuditoria.Papeis));
             papeis.Remover(papel);
             return Result.Sucesso();
         }

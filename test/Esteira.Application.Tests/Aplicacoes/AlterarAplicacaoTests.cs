@@ -45,7 +45,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             r.IsSuccess.Should().BeTrue();
             (_app.Nome, _app.Sigla, _app.Ativa).Should().Be(("Valuto 2", "VLT2", false));
             r.Value.Sigla.Should().Be("VLT2");
-            _auditoria.Received(1).Registrar("Aplicacao", _publicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(1).Registrar("Aplicacao", _publicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
         }
 
         [Fact, DisplayName("Recusa sigla de outra Aplicação (aplicacao.sigla-duplicada), sem alterar nada")]
@@ -57,7 +57,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("aplicacao.sigla-duplicada");
             _app.Nome.Should().Be("Valuto");
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Corrida: violação de unicidade vira aplicacao.sigla-duplicada")]

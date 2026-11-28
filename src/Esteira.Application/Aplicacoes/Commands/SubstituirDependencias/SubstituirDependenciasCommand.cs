@@ -59,7 +59,7 @@ namespace Esteira.Application.Aplicacoes.Commands.SubstituirDependencias
                 await projetos.AdicionarDependenciaAsync(criada.Value, cancellationToken);
             }
 
-            auditoria.Registrar("Projeto", projeto.PublicId, AcaoAuditoria.Alterou, new { DependeDe = antes }, new { DependeDe = pedidos });
+            auditoria.Registrar("Projeto", projeto.PublicId, AcaoAuditoria.Alterou, new { DependeDe = antes }, new { DependeDe = pedidos }, new DadosDoRegistro(projeto.AplicacaoId, CategoriaAuditoria.Cadastro));
 
             return Result<ProjetoResumoDto>.Sucesso(await projetos.MontarDtoAsync(projeto, cancellationToken));
         }

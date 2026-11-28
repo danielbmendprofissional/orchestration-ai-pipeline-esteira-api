@@ -14,4 +14,9 @@ namespace Esteira.Domain.Aplicacoes
     public enum PapelAplicacao { Analista, Membro, AprovadorTecnico, AprovadorNegocio, Publicador }
 
     public enum AcaoAuditoria { Criou, Alterou, Removeu }
+
+    // X1: as oito categorias da trilha e quem originou o registro (tela = pessoa, bot, pipeline = webhook/pipeline do GitLab).
+    public enum CategoriaAuditoria { Aprovacao, Fatias, Entrega, Publicacao, Excecao, Politica, Cadastro, Papeis }
+
+    public enum OrigemAuditoria { Tela, Bot, Pipeline }
 }

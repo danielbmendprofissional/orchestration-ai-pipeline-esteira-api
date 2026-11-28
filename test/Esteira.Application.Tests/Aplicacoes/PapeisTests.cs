@@ -60,7 +60,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             (r.Value.Usuario, r.Value.Nome, r.Value.Email, r.Value.Papel).Should().Be(("sub-ana", "Ana", "ana@x.com", "analista"));
             await _papeis.Received(1).AdicionarAsync(
                 Arg.Is<PapelAplicacaoEntity>(p => p.AplicacaoId == 5 && p.Usuario == "sub-ana" && p.Papel == PapelAplicacao.Analista), Arg.Any<CancellationToken>());
-            _auditoria.Received(1).Registrar("PapelAplicacao", r.Value.Id, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            _auditoria.Received(1).Registrar("PapelAplicacao", r.Value.Id, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
             await _uow.Received(1).SaveChangesAsync();
         }
 
@@ -72,7 +72,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             var erro = r.Errors.Should().ContainSingle().Subject;
             (erro.Code, erro.Type).Should().Be(("papel.pessoa-desconhecida", TipoErro.Failure));
             await _papeis.DidNotReceiveWithAnyArgs().AdicionarAsync(default!, default);
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Par (Aplicação, usuário, papel) já existente responde papel.duplicado (409) sem gravar")]
@@ -107,7 +107,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Should().Be(AutorizacaoAplicacao.PapelInsuficiente);
             await _papeis.DidNotReceiveWithAnyArgs().AdicionarAsync(default!, default);
-            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            _auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Aplicação inexistente responde aplicacao.nao-encontrada")]
@@ -150,7 +150,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.IsSuccess.Should().BeTrue();
             _papeis.Received(1).Remover(papel);
-            _auditoria.Received(1).Registrar("PapelAplicacao", papel.PublicId, AcaoAuditoria.Removeu, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o == null));
+            _auditoria.Received(1).Registrar("PapelAplicacao", papel.PublicId, AcaoAuditoria.Removeu, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o == null), Arg.Any<DadosDoRegistro>());
         }
 
         [Fact, DisplayName("Papel inexistente ou de outra Aplicação responde papel.nao-encontrado (404)")]

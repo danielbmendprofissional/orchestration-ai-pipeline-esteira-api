@@ -85,12 +85,12 @@ namespace Esteira.Application.Fatias.Decisoes
 
                     var acao = criada.Value;
                     await acoes.AdicionarAsync(acao, cancellationToken);
-                    // Sem o comentário: ele fica só na Ação.
+                    // O comentário fica fora do antes/depois; vai só no Motivo do registro (e na Ação).
                     auditoria.Registrar("AcaoBot", acao.PublicId, AcaoAuditoria.Criou, null, new
                     {
                         Fatia = acao.FatiaCodigo, Tipo = EnumKebab.Texto(acao.Tipo), Estado = EnumKebab.Texto(acao.Estado),
                         acao.ProjetoId, acao.MrIid, acao.ChaveIdempotencia
-                    });
+                    }, new DadosDoRegistro(acao.AplicacaoId, CategoriaAuditoria.Fatias, ObjetoCodigo: acao.FatiaCodigo, Motivo: comentario));
                     await publicador.Publish(
                         new AcaoBotPedida(acao.PublicId, EnumKebab.Texto(acao.Tipo), acao.FatiaCodigo, acao.ChaveIdempotencia), cancellationToken);
                     criadas.Add(acao);

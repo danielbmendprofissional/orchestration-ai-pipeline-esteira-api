@@ -1,3 +1,4 @@
+using Esteira.Application.Interfaces.Auditoria;
 using System.ComponentModel;
 using AwesomeAssertions;
 using Esteira.Application.Aplicacoes;
@@ -40,7 +41,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.IsSuccess.Should().BeTrue();
             _hml.Habilitado.Should().BeFalse();
-            Auditoria.Received(1).Registrar("AmbienteProjeto", _hml.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            Auditoria.Received(1).Registrar("AmbienteProjeto", _hml.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
         }
 
         [Fact, DisplayName("Critério 9: desabilitar producao é recusado (ambiente.producao-obrigatorio) e nada é auditado")]
@@ -50,7 +51,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("ambiente.producao-obrigatorio");
             _producao.Habilitado.Should().BeTrue();
-            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Theory, DisplayName("Validação do ambiente: dev e vazio são inválidos; habilitado é obrigatório")]
@@ -98,7 +99,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             (criado!.ProjetoId, criado.Ambiente, criado.Nome, criado.Ordem).Should().Be((Projeto.Id, AmbienteDeploy.Hml, "k8s-hml", 1));
             criado.Configuracao.Should().ContainKey("KUBE_CONTEXT");
             r.Value.Should().BeEquivalentTo(new DestinoDto { Id = criado.PublicId, Nome = "k8s-hml", Configuracao = Cfg(), Ordem = 1 });
-            Auditoria.Received(1).Registrar("Destino", criado.PublicId, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null));
+            Auditoria.Received(1).Registrar("Destino", criado.PublicId, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
         }
 
         [Theory, DisplayName("Critério 10: chave com cara de segredo é recusada (destino.configuracao-com-segredo) e não grava nem audita")]
@@ -112,7 +113,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             erro.Code.Should().Be("destino.configuracao-com-segredo");
             erro.Message.Should().Contain("GitLab").And.NotContain("valor-secreto-123");
             await Projetos.DidNotReceiveWithAnyArgs().AdicionarDestinoAsync(default!, default);
-            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Nome de Destino repetido no mesmo Projeto+Ambiente é recusado (destino.nome-duplicado)")]
@@ -184,7 +185,7 @@ namespace Esteira.Application.Tests.Aplicacoes
             r.IsSuccess.Should().BeTrue();
             (d.Nome, d.Ordem).Should().Be(("novo", 5));
             d.Configuracao.Should().ContainKey("NAMESPACE");
-            Auditoria.Received(1).Registrar("Destino", d.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null));
+            Auditoria.Received(1).Registrar("Destino", d.PublicId, AcaoAuditoria.Alterou, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o != null), Arg.Any<DadosDoRegistro>());
         }
 
         [Fact, DisplayName("Critério 10: alterar com chave de segredo é recusado e o Destino fica como estava")]
@@ -196,7 +197,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.Errors.Should().ContainSingle().Which.Code.Should().Be("destino.configuracao-com-segredo");
             d.Nome.Should().Be("k8s-hml");
-            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default);
+            Auditoria.DidNotReceiveWithAnyArgs().Registrar(default!, default, default, default, default, default!);
         }
 
         [Fact, DisplayName("Alterar para nome de outro Destino do Projeto+Ambiente é recusado (destino.nome-duplicado)")]
@@ -230,7 +231,7 @@ namespace Esteira.Application.Tests.Aplicacoes
 
             r.IsSuccess.Should().BeTrue();
             Projetos.Received(1).RemoverDestino(d);
-            Auditoria.Received(1).Registrar("Destino", d.PublicId, AcaoAuditoria.Removeu, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o == null));
+            Auditoria.Received(1).Registrar("Destino", d.PublicId, AcaoAuditoria.Removeu, Arg.Is<object?>(o => o != null), Arg.Is<object?>(o => o == null), Arg.Any<DadosDoRegistro>());
         }
     }
 }

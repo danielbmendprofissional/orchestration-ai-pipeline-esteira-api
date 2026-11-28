@@ -65,7 +65,7 @@ namespace Esteira.Application.Aplicacoes.Commands.DefinirWorkspace
                     return definido;
             }
 
-            auditoria.Registrar("Aplicacao", aplicacao.PublicId, AcaoAuditoria.Alterou, antes, Estado(aplicacao));
+            auditoria.Registrar("Aplicacao", aplicacao.PublicId, AcaoAuditoria.Alterou, antes, Estado(aplicacao), new DadosDoRegistro(aplicacao.Id, CategoriaAuditoria.Cadastro));
             await uow.SaveChangesAsync();
             return Result.Sucesso();
         }

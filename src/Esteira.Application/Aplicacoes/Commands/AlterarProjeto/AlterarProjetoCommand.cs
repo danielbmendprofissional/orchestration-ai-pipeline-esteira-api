@@ -39,7 +39,7 @@ namespace Esteira.Application.Aplicacoes.Commands.AlterarProjeto
 
             var antes = Estado(projeto);
             projeto.Alterar(stack, request.Ativo!.Value);
-            auditoria.Registrar("Projeto", projeto.PublicId, AcaoAuditoria.Alterou, antes, Estado(projeto));
+            auditoria.Registrar("Projeto", projeto.PublicId, AcaoAuditoria.Alterou, antes, Estado(projeto), new DadosDoRegistro(projeto.AplicacaoId, CategoriaAuditoria.Cadastro));
 
             return Result<ProjetoResumoDto>.Sucesso(await projetos.MontarDtoAsync(projeto, cancellationToken));
         }

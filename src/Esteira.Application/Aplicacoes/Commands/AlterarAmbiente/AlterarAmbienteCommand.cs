@@ -46,7 +46,7 @@ namespace Esteira.Application.Aplicacoes.Commands.AlterarAmbiente
             if (!alterado.IsSuccess)
                 return Result<ProjetoResumoDto>.Falha(alterado.Errors.ToArray());
 
-            auditoria.Registrar("AmbienteProjeto", linha.PublicId, AcaoAuditoria.Alterou, antes, Estado(projeto, linha));
+            auditoria.Registrar("AmbienteProjeto", linha.PublicId, AcaoAuditoria.Alterou, antes, Estado(projeto, linha), new DadosDoRegistro(projeto.AplicacaoId, CategoriaAuditoria.Cadastro));
 
             return Result<ProjetoResumoDto>.Sucesso(await projetos.MontarDtoAsync(projeto, cancellationToken));
         }

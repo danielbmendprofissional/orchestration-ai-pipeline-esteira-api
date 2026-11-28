@@ -4,6 +4,7 @@ using AwesomeAssertions;
 using Esteira.Application.Aplicacoes;
 using Esteira.Application.Entregas.Commands.Abrir;
 using Esteira.Application.Interfaces.Aplicacoes;
+using Esteira.Application.Interfaces.Auditoria;
 using Esteira.Application.Interfaces.Usuario;
 using Esteira.Domain.Aplicacoes;
 using Esteira.Domain.Common.Base;
@@ -28,6 +29,7 @@ namespace Esteira.Application.Tests.Entregas
         private readonly IPessoaRepositorio _pessoas = Substitute.For<IPessoaRepositorio>();
         private readonly IEntregaRepositorio _entregas = Substitute.For<IEntregaRepositorio>();
         private readonly IUsuarioAtual _usuario = Substitute.For<IUsuarioAtual>();
+        private readonly IAuditoria _auditoria = Substitute.For<IAuditoria>();
         private readonly Guid _aplicacaoPublicId = Guid.NewGuid();
         private readonly ProjetoEntity _api = NovoProjeto(10);
         private readonly ProjetoEntity _front = NovoProjeto(11);
@@ -65,7 +67,7 @@ namespace Esteira.Application.Tests.Entregas
                 .Returns(AmbienteProjetoEntity.Criar(p.Id, AmbienteDeploy.Qa, habilitado).Value);
 
         private AbrirEntregaHandler Handler()
-            => new(_acesso, _autorizacao, _aplicacoes, _projetos, _pessoas, _entregas, _usuario, new FakeRelogio(T0));
+            => new(_acesso, _autorizacao, _aplicacoes, _projetos, _pessoas, _entregas, _usuario, _auditoria, new FakeRelogio(T0));
 
         private AbrirEntregaCommand Comando() => new(_aplicacaoPublicId,
         [
@@ -98,6 +100,20 @@ namespace Esteira.Application.Tests.Entregas
             var fluxoFront = gravada.Fluxos.Single(f => f.ProjetoId == _front.Id);
             fluxoFront.TipoMudanca.Should().Be(TipoMudanca.Major);
             fluxoFront.Fatias.Should().ContainSingle().Which.CodigoFatia.Should().Be("B2");
+        }
+
+        [Fact, Trait("Fatia", "X1"), DisplayName("X1 critério 1: abrir a Entrega grava Entrega/Criou, categoria entrega, origem tela, Aplicação e código da Entrega")]
+        public async Task Abrir_Audita()
+        {
+            EntregaEntity? gravada = null;
+            await _entregas.AdicionarAsync(Arg.Do<EntregaEntity>(e => gravada = e), Arg.Any<CancellationToken>());
+
+            var r = await Handler().Handle(Comando(), Ct);
+
+            r.IsSuccess.Should().BeTrue();
+            _auditoria.Received(1).Registrar("Entrega", gravada!.PublicId, AcaoAuditoria.Criou, Arg.Is<object?>(o => o == null), Arg.Is<object?>(o => o != null),
+                Arg.Is<DadosDoRegistro>(d => d.AplicacaoId == AplicacaoId && d.Categoria == CategoriaAuditoria.Entrega
+                    && d.Origem == OrigemAuditoria.Tela && d.ObjetoCodigo == gravada.PublicId.ToString()));
         }
 
         [Theory, DisplayName("2: sem Membro (nem MOR) recusa com entrega.sem-permissao e não grava nada")]

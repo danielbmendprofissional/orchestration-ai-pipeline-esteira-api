@@ -9,5 +9,9 @@ namespace Esteira.Application.Interfaces.Auditoria
         // Quem = IUsuarioAtual.Id (sub); quando = agora em UTC. `antes`/`depois` são serializados em JSON
         // (null = sem estado, como no antes de uma criação ou no depois de uma remoção).
         void Registrar(string entidade, Guid entidadePublicId, AcaoAuditoria acao, object? antes, object? depois);
+
+        // X1: o atalho acima = origem `tela`, sem Aplicação, categoria deduzida da entidade. Esta informa tudo.
+        // A gravação nunca é gateada pelo flag Features:X1.
+        void Registrar(string entidade, Guid entidadePublicId, AcaoAuditoria acao, object? antes, object? depois, DadosDoRegistro dados);
     }
 }
