@@ -32,4 +32,20 @@ namespace Esteira.Application.Auditoria.Queries
         public async Task<Result<FiltrosDeAuditoriaDto>> Handle(ObterFiltrosDeAuditoriaQuery request, CancellationToken cancellationToken)
             => Result<FiltrosDeAuditoriaDto>.Sucesso(await query.FiltrosAsync(cancellationToken));
     }
+
+    public sealed record ObterRegistroDeAuditoriaQuery(Guid Id) : IRequest<Result<RegistroAuditoriaDetalheDto>>;
+
+    public sealed class ObterRegistroDeAuditoriaHandler(IAuditoriaQuery query)
+        : IRequestHandler<ObterRegistroDeAuditoriaQuery, Result<RegistroAuditoriaDetalheDto>>
+    {
+        public static readonly Erro NaoEncontrado = new("auditoria.nao-encontrado", "Registro de auditoria não encontrado.", TipoErro.NotFound);
+
+        public async Task<Result<RegistroAuditoriaDetalheDto>> Handle(ObterRegistroDeAuditoriaQuery request, CancellationToken cancellationToken)
+        {
+            var registro = await query.ObterAsync(request.Id, cancellationToken);
+            return registro is null
+                ? Result<RegistroAuditoriaDetalheDto>.Falha(NaoEncontrado)
+                : Result<RegistroAuditoriaDetalheDto>.Sucesso(registro);
+        }
+    }
 }

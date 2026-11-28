@@ -12,6 +12,9 @@ namespace Esteira.Application.Interfaces.Auditoria
         // Todas as categorias (zero incluído); `filtro.Categoria` é ignorado de propósito.
         Task<IReadOnlyList<CategoriaContagemDto>> ContarPorCategoriaAsync(FiltroDeAuditoria filtro, CancellationToken cancellationToken = default);
 
+        // Nulo = inexistente OU fora do escopo (indistinguíveis de propósito).
+        Task<RegistroAuditoriaDetalheDto?> ObterAsync(Guid id, CancellationToken cancellationToken = default);
+
         Task<FiltrosDeAuditoriaDto> FiltrosAsync(CancellationToken cancellationToken = default);
     }
 }

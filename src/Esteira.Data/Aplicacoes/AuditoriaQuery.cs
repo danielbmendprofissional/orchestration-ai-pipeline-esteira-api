@@ -32,6 +32,7 @@ namespace Esteira.Data.Aplicacoes
             public bool Autoaprovacao { get; init; }
             public string? Antes { get; init; }
             public string? Depois { get; init; }
+            public string? Motivo { get; init; }
         }
 
         private static readonly OrdenacaoPadrao<RegistroAuditoriaLinha> Padrao =
@@ -81,6 +82,51 @@ namespace Esteira.Data.Aplicacoes
                 TamanhoPagina = p.TamanhoPagina,
                 Total = p.Total
             });
+        }
+
+        public async Task<RegistroAuditoriaDetalheDto?> ObterAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var aplicacoes = contexto.Set<AplicacaoEntity>();
+
+            var l = await Visiveis().Where(r => r.PublicId == id).Select(r => new RegistroAuditoriaLinha
+            {
+                Id = r.PublicId,
+                Quando = r.Quando,
+                Usuario = r.Usuario,
+                UsuarioNome = r.UsuarioNome,
+                Origem = r.Origem,
+                Categoria = r.Categoria,
+                Acao = r.Acao,
+                Verbo = r.Verbo,
+                Entidade = r.Entidade,
+                EntidadePublicId = r.EntidadePublicId,
+                ObjetoCodigo = r.ObjetoCodigo,
+                ObjetoNome = r.ObjetoNome,
+                AplicacaoPublicId = aplicacoes.Where(a => a.Id == r.AplicacaoId).Select(a => (Guid?)a.PublicId).FirstOrDefault(),
+                AplicacaoNome = aplicacoes.Where(a => a.Id == r.AplicacaoId).Select(a => a.Nome).FirstOrDefault(),
+                Autoaprovacao = r.Autoaprovacao,
+                Antes = r.Antes,
+                Depois = r.Depois,
+                Motivo = r.Motivo
+            }).FirstOrDefaultAsync(cancellationToken);
+
+            if (l is null)
+                return null;
+
+            var lista = Montar(l);
+            return new RegistroAuditoriaDetalheDto
+            {
+                Id = lista.Id,
+                Quando = lista.Quando,
+                Quem = lista.Quem,
+                Categoria = lista.Categoria,
+                Verbo = lista.Verbo,
+                Objeto = lista.Objeto,
+                Aplicacao = lista.Aplicacao,
+                Autoaprovacao = lista.Autoaprovacao,
+                Mudancas = MudancasDeAuditoria.Montar(l.Acao, l.Antes, l.Depois),
+                Motivo = l.Motivo
+            };
         }
 
         public async Task<IReadOnlyList<CategoriaContagemDto>> ContarPorCategoriaAsync(FiltroDeAuditoria filtro, CancellationToken cancellationToken = default)
@@ -160,12 +206,14 @@ namespace Esteira.Data.Aplicacoes
                 var padrao = $"%{Escapar(busca)}%";
                 // Campos alterados = nomes das chaves do JSON (só nome, nunca valor: a busca não vaza segredo).
                 // ILIKE do Postgres já usa a barra invertida como escape.
+                // Nome com cara de segredo fica fora da busca (critério 9).
+                var segredos = CamposSecretos.PadraoRegex;
                 var comCampo = contexto.Database.SqlQuery<long>($$"""
                     SELECT r."Id" AS "Value" FROM esteira."RegistroAuditoria" r
                     WHERE EXISTS (
-                        SELECT 1 FROM jsonb_object_keys(CASE WHEN jsonb_typeof(r."Antes") = 'object' THEN r."Antes" ELSE '{}'::jsonb END) k WHERE k ILIKE {{padrao}})
+                        SELECT 1 FROM jsonb_object_keys(CASE WHEN jsonb_typeof(r."Antes") = 'object' THEN r."Antes" ELSE '{}'::jsonb END) k WHERE k ILIKE {{padrao}} AND k !~* {{segredos}})
                     OR EXISTS (
-                        SELECT 1 FROM jsonb_object_keys(CASE WHEN jsonb_typeof(r."Depois") = 'object' THEN r."Depois" ELSE '{}'::jsonb END) k WHERE k ILIKE {{padrao}})
+                        SELECT 1 FROM jsonb_object_keys(CASE WHEN jsonb_typeof(r."Depois") = 'object' THEN r."Depois" ELSE '{}'::jsonb END) k WHERE k ILIKE {{padrao}} AND k !~* {{segredos}})
                     """);
 
                 consulta = consulta.Where(r =>

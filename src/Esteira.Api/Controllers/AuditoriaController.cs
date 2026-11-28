@@ -56,5 +56,13 @@ namespace Esteira.Api.Controllers
         [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
         public Task<Result<FiltrosDeAuditoriaDto>> Filtros(CancellationToken cancellationToken)
             => mediator.Send(new ObterFiltrosDeAuditoriaQuery(), cancellationToken);
+
+        // Fora do escopo e inexistente respondem o mesmo 404 (nunca 403: não revela que existe).
+        [HttpGet("{id:guid}")]
+        [ProducesResponseType<RegistroAuditoriaDetalheDto>(StatusCodes.Status200OK)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<RespostaDeErro>(StatusCodes.Status404NotFound)]
+        public Task<Result<RegistroAuditoriaDetalheDto>> Obter(Guid id, CancellationToken cancellationToken)
+            => mediator.Send(new ObterRegistroDeAuditoriaQuery(id), cancellationToken);
     }
 }
